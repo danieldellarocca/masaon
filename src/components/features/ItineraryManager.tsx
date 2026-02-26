@@ -24,30 +24,43 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
     if (!file) return;
 
     setLoading(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
-        try {
-          const result = await analyzeItineraryForGuide({
-            documentDataUri: base64,
-            documentFileName: file.name
+    const reader = new FileReader();
+    
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      try {
+        const result = await analyzeItineraryForGuide({
+          documentDataUri: base64,
+          documentFileName: file.name
+        });
+        
+        if (result && result.itineraryDays) {
+          setItinerary(result.itineraryDays);
+          toast({ 
+            title: "המסלול נותח בהצלחה!", 
+            description: `זוהו ${result.itineraryDays.length} ימי טיול עבור ${result.tripName}.` 
           });
-          
-          if (result.itineraryDays) {
-            setItinerary(result.itineraryDays);
-            toast({ title: "המסלול נותח בהצלחה!", description: `זוהו ${result.itineraryDays.length} ימי טיול.` });
-          }
-        } catch (err) {
-          toast({ variant: "destructive", title: "שגיאה בניתוח הקובץ", description: "אנא נסה שוב או הזן ידנית." });
-        } finally {
-          setLoading(false);
+        } else {
+          throw new Error("Invalid response structure");
         }
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
+      } catch (err) {
+        console.error("Analysis error:", err);
+        toast({ 
+          variant: "destructive", 
+          title: "שגיאה בניתוח הקובץ", 
+          description: "לא הצלחנו לנתח את הקובץ. אנא נסה קובץ אחר או הזן ידנית." 
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    reader.onerror = () => {
       setLoading(false);
-    }
+      toast({ variant: "destructive", title: "שגיאה בקריאת הקובץ" });
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const addDay = () => {
@@ -70,9 +83,9 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
             <p className="font-bold text-lg">טען תוכנית טיול (PDF/Word)</p>
             <p className="text-sm text-muted-foreground">הבינה המלאכותית שלנו תחלץ עבורך את הימים והפעילויות</p>
             <Input id="file-upload" type="file" className="hidden" onChange={handleFileUpload} disabled={loading} />
-            <Button variant="outline" className="mt-2" disabled={loading}>
+            <Button variant="outline" className="mt-2 pointer-events-none" disabled={loading}>
               <Sparkles className="w-4 h-4 ml-2 text-accent" />
-              ניתוח מסלול חכם
+              {loading ? "מנתח מסלול..." : "ניתוח מסלול חכם"}
             </Button>
           </Label>
         </CardContent>

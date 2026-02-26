@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, Trip, Notice } from "@/lib/types";
+import { User, Trip, Notice, EmergencyContact } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -9,18 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   Clock, 
-  Shirt, 
   LogOut,
   Bell,
   Coffee,
   Bus,
-  Users
+  Phone,
+  Plus,
+  Trash2
 } from "lucide-react";
 import { NoticeBoard } from "@/components/features/NoticeBoard";
 import { BoardingCheck } from "@/components/features/BoardingCheck";
 import { ItineraryManager } from "@/components/features/ItineraryManager";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
 
 interface GuideDashboardProps {
   user: User;
@@ -32,6 +32,7 @@ interface GuideDashboardProps {
 export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboardProps) {
   const { toast } = useToast();
   const [stopMinutes, setStopMinutes] = useState("15");
+  const [newContact, setNewContact] = useState({ name: "", phone: "" });
 
   const addNotice = (content: string) => {
     const newNotice: Notice = {
@@ -53,7 +54,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
         confirmedStudentIds: []
       }
     }));
-    addNotice(`עצירת רענון ל-${stopMinutes} דקות. נא לסמן נוכחות באפליקציה!`);
+    addNotice(`עצירת רענון ל-${stopMinutes} דקות. נא לסמן שהייתם בשירותים באפליקציה!`);
   };
 
   const endRestStop = () => {
@@ -89,6 +90,22 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
     }));
   };
 
+  const addContact = () => {
+    if (!newContact.name || !newContact.phone) return;
+    setTrip(prev => ({
+      ...prev,
+      emergencyContacts: [...prev.emergencyContacts, { ...newContact }]
+    }));
+    setNewContact({ name: "", phone: "" });
+  };
+
+  const removeContact = (index: number) => {
+    setTrip(prev => ({
+      ...prev,
+      emergencyContacts: prev.emergencyContacts.filter((_, i) => i !== index)
+    }));
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6 pb-24">
       <header className="flex justify-between items-center bg-card p-4 rounded-xl shadow-sm border">
@@ -109,12 +126,11 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
           <TabsTrigger value="overview">כללי</TabsTrigger>
           <TabsTrigger value="itinerary">מסלול</TabsTrigger>
           <TabsTrigger value="logistics">לוגיסטיקה</TabsTrigger>
-          <TabsTrigger value="notices">הודעות</TabsTrigger>
+          <TabsTrigger value="emergency">חירום</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Active Actions */}
             <Card className="md:col-span-2 border-primary/50 bg-primary/5">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -196,35 +212,18 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-primary/5 border-primary/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Shirt className="w-4 h-4 text-primary" />
-                  המלצת לבוש
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-primary" />
+                  פרסום הודעה מהירה
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <textarea 
-                  className="w-full text-sm border rounded-md p-2 min-h-[80px]"
-                  placeholder="הזן המלצות לבוש למחר..."
-                  value={trip.clothingGuide}
-                  onChange={(e) => setTrip(prev => ({ ...prev, clothingGuide: e.target.value }))}
-                />
+                <NoticeBoard onAdd={addNotice} isGuide />
               </CardContent>
             </Card>
           </div>
-
-          <Card className="bg-primary/5 border-primary/20">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Bell className="w-5 h-5 text-primary" />
-                פרסום הודעה מהירה
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <NoticeBoard onAdd={addNotice} isGuide />
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="itinerary">
@@ -235,19 +234,47 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
           <BoardingCheck trip={trip} setTrip={setTrip} />
         </TabsContent>
 
-        <TabsContent value="notices">
-           <div className="space-y-4">
-             {trip.notices.length === 0 && <p className="text-center text-muted-foreground py-8">אין הודעות חדשות</p>}
-             {trip.notices.map(notice => (
-               <Card key={notice.id} className="relative overflow-hidden">
-                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
-                 <CardContent className="pt-4">
-                   <p className="text-sm mb-1">{notice.content}</p>
-                   <p className="text-[10px] text-muted-foreground">{new Date(notice.timestamp).toLocaleTimeString()}</p>
-                 </CardContent>
-               </Card>
-             ))}
-           </div>
+        <TabsContent value="emergency">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Phone className="w-5 h-5 text-primary" />
+                אנשי קשר לחירום
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <Input 
+                  placeholder="שם (לדוגמה: מדריך ראשי)" 
+                  value={newContact.name}
+                  onChange={(e) => setNewContact(prev => ({ ...prev, name: e.target.value }))}
+                />
+                <Input 
+                  placeholder="טלפון" 
+                  value={newContact.phone}
+                  onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))}
+                />
+                <Button className="col-span-2" onClick={addContact}>
+                  <Plus className="w-4 h-4 ml-2" />
+                  הוסף איש קשר
+                </Button>
+              </div>
+
+              <div className="space-y-2 mt-4">
+                {trip.emergencyContacts.map((contact, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-3 border rounded-lg">
+                    <div>
+                      <p className="font-bold">{contact.name}</p>
+                      <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => removeContact(idx)}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

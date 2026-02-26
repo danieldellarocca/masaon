@@ -8,21 +8,19 @@ import { clothingRecommendationForStudent } from "@/ai/flows/clothing-recommenda
 
 interface ClothingAdvisorProps {
   location: string;
-  guideGuidelines: string;
 }
 
-export function ClothingAdvisor({ location, guideGuidelines }: ClothingAdvisorProps) {
+export function ClothingAdvisor({ location }: ClothingAdvisorProps) {
   const [loading, setLoading] = useState(false);
   const [recommendation, setRecommendation] = useState<string | null>(null);
 
   const getAdvice = async () => {
     setLoading(true);
     try {
-      // In a real app, we'd fetch weather here.
-      const mockWeather = "שמש חלקית, 22 מעלות צלזיוס";
+      const mockWeather = "שמש חלקית, 22 מעלות צלזיוס, רוח קלה";
       const result = await clothingRecommendationForStudent({
         location,
-        guideGuidelines,
+        guideGuidelines: "אין הנחיות מיוחדות, מסלול הליכה רגיל",
         currentWeather: mockWeather
       });
       setRecommendation(result.recommendation);
@@ -43,7 +41,7 @@ export function ClothingAdvisor({ location, guideGuidelines }: ClothingAdvisorPr
       </CardHeader>
       <CardContent className="space-y-4">
         {recommendation ? (
-          <div className="animate-in fade-in duration-500">
+          <div className="animate-in fade-in duration-500 text-right" dir="rtl">
             <p className="text-sm leading-relaxed whitespace-pre-line">{recommendation}</p>
             <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setRecommendation(null)}>
               נקה המלצה
@@ -52,7 +50,7 @@ export function ClothingAdvisor({ location, guideGuidelines }: ClothingAdvisorPr
         ) : (
           <div className="flex flex-col items-center text-center py-4">
             <p className="text-xs text-muted-foreground mb-4">
-              המלצה המבוססת על מזג האוויר ב{location} והנחיות המלווה.
+              המלצה חכמה המבוססת על מזג האוויר ב{location} וניתוח AI.
             </p>
             <Button 
               onClick={getAdvice} 

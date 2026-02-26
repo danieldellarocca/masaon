@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -22,15 +22,40 @@ export function SOSButton() {
 
   const handleSOS = () => {
     setSending(true);
-    // Simulate getting GPS and sending alert
-    setTimeout(() => {
+    
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          console.log(`SOS Location: ${latitude}, ${longitude}`);
+          
+          // Simulate sending to guide
+          setTimeout(() => {
+            setSending(false);
+            toast({
+              variant: "destructive",
+              title: "התראת SOS נשלחה",
+              description: `המיקום שלך (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) נשלח למלווה. הישאר במקומך!`,
+            });
+          }, 1500);
+        },
+        (error) => {
+          setSending(false);
+          toast({
+            variant: "destructive",
+            title: "שגיאת GPS",
+            description: "לא הצלחנו להשיג את המיקום המדויק שלך, אך ההתראה הכללית נשלחה למלווה.",
+          });
+        }
+      );
+    } else {
       setSending(false);
       toast({
         variant: "destructive",
-        title: "התראת SOS נשלחה",
-        description: "המיקום שלך נשלח למלווה ברגע זה. הישאר במקומך.",
+        title: "SOS נשלח",
+        description: "ההתראה נשלחה, אך המכשיר שלך אינו תומך בשיתוף מיקום GPS.",
       });
-    }, 1500);
+    }
   };
 
   return (
@@ -39,10 +64,17 @@ export function SOSButton() {
         <AlertDialogTrigger asChild>
           <Button 
             size="lg" 
+            disabled={sending}
             className="rounded-full w-20 h-20 shadow-2xl bg-destructive hover:bg-destructive/90 animate-pulse border-4 border-white flex flex-col"
           >
-            <AlertTriangle className="w-8 h-8 mb-1" />
-            <span className="text-[10px] font-bold">SOS</span>
+            {sending ? (
+              <Loader2 className="w-8 h-8 animate-spin" />
+            ) : (
+              <>
+                <AlertTriangle className="w-8 h-8 mb-1" />
+                <span className="text-[10px] font-bold">SOS</span>
+              </>
+            )}
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent dir="rtl">

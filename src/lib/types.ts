@@ -14,6 +14,11 @@ export interface ItineraryDay {
   activities: string;
 }
 
+export interface EmergencyContact {
+  name: string;
+  phone: string;
+}
+
 export interface Trip {
   id: string;
   name: string;
@@ -21,9 +26,9 @@ export interface Trip {
   itinerary: ItineraryDay[];
   notices: Notice[];
   logistics: BoardingStatus[];
+  emergencyContacts: EmergencyContact[];
   wakeUpTime?: string;
   lightsOutTime?: string;
-  clothingGuide?: string;
   activeRestStop?: {
     endTime: string; // ISO string
     confirmedStudentIds: string[];

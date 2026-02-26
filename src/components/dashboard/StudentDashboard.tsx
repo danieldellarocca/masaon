@@ -15,7 +15,9 @@ import {
   BookOpen, 
   LogOut,
   Bus,
-  CheckCircle2
+  CheckCircle2,
+  PhoneCall,
+  Coffee
 } from "lucide-react";
 
 interface StudentDashboardProps {
@@ -74,7 +76,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
           <CardHeader className="pb-2">
             <CardTitle className="text-md flex items-center justify-between text-green-700">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5" />
+                <Coffee className="w-5 h-5" />
                 עצירת רענון
               </div>
               <CountdownTimer targetTime={trip.activeRestStop.endTime} />
@@ -84,11 +86,11 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
             {trip.activeRestStop.confirmedStudentIds.includes(user.id) ? (
               <div className="flex items-center justify-center gap-2 text-green-600 font-bold py-2">
                 <CheckCircle2 className="w-5 h-5" />
-                סימנת שחזרת!
+                אישרת ביקור בשירותים!
               </div>
             ) : (
               <Button onClick={() => confirmPresence('rest')} className="w-full bg-green-600 hover:bg-green-700">
-                אני כאן / חזרתי לעצירה
+                הייתי בשירותים
               </Button>
             )}
           </CardContent>
@@ -143,20 +145,31 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
         </CardContent>
       </Card>
 
-      {/* Announcements */}
-      {trip.notices.length > 0 && (
-        <Card className="border-accent/40 bg-accent/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2 text-accent-foreground">
-              <Megaphone className="w-4 h-4" />
-              הודעה אחרונה מהמלווה
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-medium">{trip.notices[0].content}</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Quick Calls */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <PhoneCall className="w-4 h-4 text-primary" />
+            חיוג מהיר
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-2">
+          {trip.emergencyContacts.map((contact, idx) => (
+            <Button 
+              key={idx} 
+              variant="outline" 
+              className="text-xs h-auto py-2 flex flex-col gap-1 border-primary/20 hover:bg-primary/5"
+              onClick={() => window.location.href = `tel:${contact.phone}`}
+            >
+              <span className="font-bold truncate w-full">{contact.name}</span>
+              <span className="text-muted-foreground">{contact.phone}</span>
+            </Button>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* AI Features */}
+      <ClothingAdvisor location={currentDay?.location || "ירושלים"} />
 
       {/* Main Grid Actions */}
       <div className="grid grid-cols-2 gap-4">
@@ -173,9 +186,6 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
           </CardContent>
         </Card>
       </div>
-
-      {/* AI Features */}
-      <ClothingAdvisor guideGuidelines={trip.clothingGuide || ""} location={currentDay?.location || "ירושלים"} />
 
       {/* Report Issues */}
       <div className="space-y-4">

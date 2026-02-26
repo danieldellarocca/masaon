@@ -18,9 +18,12 @@ const MOCK_INITIAL_TRIP: Trip = {
     { id: "1", content: "מחר יוצאים ב-07:00 בדיוק!", timestamp: new Date().toISOString() }
   ],
   logistics: [],
+  emergencyContacts: [
+    { name: "מוקד חירום ארצי", phone: "100" },
+    { name: "מד\"א", phone: "101" }
+  ],
   wakeUpTime: "06:30",
-  lightsOutTime: "23:00",
-  clothingGuide: "נעלי הליכה נוחות, כובע ומים."
+  lightsOutTime: "23:00"
 };
 
 export default function Home() {
@@ -42,12 +45,10 @@ export default function Home() {
     setIsLoaded(true);
   }, []);
 
-  // Sync trip to local storage to simulate "real-time" behavior between roles in one browser
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem("masaon_trip", JSON.stringify(trip));
       
-      // Listen for storage changes to sync across tabs (simulating backend)
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === "masaon_trip" && e.newValue) {
           setTrip(JSON.parse(e.newValue));
