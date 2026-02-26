@@ -1,0 +1,79 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Sparkles, Loader2, Shirt } from "lucide-react";
+import { clothingRecommendationForStudent } from "@/ai/flows/clothing-recommendation-for-student-flow";
+
+interface ClothingAdvisorProps {
+  location: string;
+  guideGuidelines: string;
+}
+
+export function ClothingAdvisor({ location, guideGuidelines }: ClothingAdvisorProps) {
+  const [loading, setLoading] = useState(false);
+  const [recommendation, setRecommendation] = useState<string | null>(null);
+
+  const getAdvice = async () => {
+    setLoading(true);
+    try {
+      // In a real app, we'd fetch weather here.
+      const mockWeather = "שמש חלקית, 22 מעלות צלזיוס";
+      const result = await clothingRecommendationForStudent({
+        location,
+        guideGuidelines,
+        currentWeather: mockWeather
+      });
+      setRecommendation(result.recommendation);
+    } catch (err) {
+      setRecommendation("מצטערים, לא הצלחנו לקבל המלצה כרגע. עדיף להתלבש בשיטת הבצל!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="border-accent bg-accent/5">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Shirt className="w-5 h-5 text-accent-foreground" />
+          מה כדאי ללבוש היום?
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {recommendation ? (
+          <div className="animate-in fade-in duration-500">
+            <p className="text-sm leading-relaxed whitespace-pre-line">{recommendation}</p>
+            <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setRecommendation(null)}>
+              נקה המלצה
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center text-center py-4">
+            <p className="text-xs text-muted-foreground mb-4">
+              המלצה המבוססת על מזג האוויר ב{location} והנחיות המלווה.
+            </p>
+            <Button 
+              onClick={getAdvice} 
+              disabled={loading}
+              className="bg-accent text-accent-foreground hover:bg-accent/80"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                  מחשב המלצה...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 ml-2" />
+                  קבל המלצת לבוש חכמה
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
