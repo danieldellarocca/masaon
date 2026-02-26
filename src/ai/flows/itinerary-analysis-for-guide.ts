@@ -14,7 +14,7 @@ const ItineraryAnalysisInputSchema = z.object({
   documentDataUri: z
     .string()
     .describe(
-      "A trip itinerary document (e.g., PDF, Word) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "A trip itinerary document (e.g., PDF, Image) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
   documentFileName: z
     .string()

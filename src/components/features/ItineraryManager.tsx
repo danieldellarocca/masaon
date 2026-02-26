@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileUp, Loader2, Sparkles, Plus, Trash2, Clock } from "lucide-react";
+import { FileUp, Loader2, Sparkles, Plus, Trash2, Clock, AlertCircle } from "lucide-react";
 import { analyzeItineraryForGuide } from "@/ai/flows/itinerary-analysis-for-guide";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,6 +23,19 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Gemini Google AI model supports PDF and Images, but not Word documents directly via multimodal input
+    const supportedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    if (!supportedTypes.includes(file.type)) {
+      toast({
+        variant: "destructive",
+        title: "סוג קובץ לא נתמך",
+        description: "אנא העלה קובץ PDF או תמונה (JPG, PNG). קבצי Word אינם נתמכים כרגע בניתוח האוטומטי."
+      });
+      // Clear input
+      e.target.value = '';
+      return;
+    }
+
     setLoading(true);
     const reader = new FileReader();
     
@@ -35,7 +48,6 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
         });
         
         if (result && result.itineraryDays) {
-          // Normalize results to ensure all required UI fields exist even if AI didn't find them
           const normalizedDays: ItineraryDay[] = result.itineraryDays.map(day => ({
             dayNumber: day.dayNumber,
             date: day.date || "",
@@ -47,17 +59,17 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
           setItinerary(normalizedDays);
           toast({ 
             title: "המסלול נותח!", 
-            description: `זוהו ${result.itineraryDays.length} ימי טיול. אנא ודא שהפרטים מדויקים והשלם חוסרים.` 
+            description: `זוהו ${result.itineraryDays.length} ימי טיול. המידע חולץ באופן חלקי, אנא השלם חוסרים ידנית.` 
           });
         } else {
           throw new Error("Invalid response structure");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Analysis error:", err);
         toast({ 
           variant: "destructive", 
           title: "שגיאה בניתוח הקובץ", 
-          description: "לא הצלחנו לנתח את הקובץ באופן אוטומטי. ניתן להזין פרטים ידנית." 
+          description: err.message || "לא הצלחנו לנתח את הקובץ. ודא שהקובץ הוא PDF או תמונה ברורה." 
         });
       } finally {
         setLoading(false);
@@ -110,9 +122,13 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               {loading ? <Loader2 className="animate-spin text-primary" /> : <FileUp className="text-primary" />}
             </div>
-            <p className="font-bold text-lg">טען תוכנית טיול (PDF/Word/תמונה)</p>
-            <p className="text-sm text-muted-foreground">ה-AI יחלץ את מה שניתן, ואתה תוכל להשלים את השאר</p>
-            <Input id="file-upload" type="file" className="hidden" onChange={handleFileUpload} disabled={loading} />
+            <p className="font-bold text-lg">טען תוכנית טיול (PDF או תמונה)</p>
+            <p className="text-sm text-muted-foreground">ה-AI יחלץ את מה שניתן (ימים, אתרים ושעות)</p>
+            <div className="flex items-center gap-1 text-[10px] text-orange-600 mt-1">
+              <AlertCircle className="w-3 h-3" />
+              <span>קבצי Word יש להמיר ל-PDF תחילה</span>
+            </div>
+            <Input id="file-upload" type="file" className="hidden" onChange={handleFileUpload} disabled={loading} accept=".pdf,image/*" />
             <Button variant="outline" className="mt-2 pointer-events-none" disabled={loading}>
               <Sparkles className="w-4 h-4 ml-2 text-accent" />
               {loading ? "מנתח מסלול..." : "ניתוח מסלול חכם"}
