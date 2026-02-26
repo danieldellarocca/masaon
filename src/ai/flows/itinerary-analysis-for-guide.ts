@@ -35,6 +35,10 @@ const ItineraryAnalysisOutputSchema = z.object({
           .describe('The date for this day of the itinerary in YYYY-MM-DD format.'),
         location: z.string().describe('The main location or city for this day.'),
         activities: z.string().describe('A summary of activities planned for this day.'),
+        sites: z.array(z.object({
+          name: z.string().describe('The name of the site or activity.'),
+          time: z.string().describe('The planned time for this site visit, e.g., "09:00 - 10:30".')
+        })).optional().describe('Detailed list of sites and visit times for this day.')
       })
     )
     .describe('A structured list of daily itinerary details.'),
@@ -57,6 +61,8 @@ const prompt = ai.definePrompt({
 
 אנא ספק את המידע בפורמט JSON המחמיר הבא, תוך הקפדה על כל השדות והפורמטים:
 {{json schema=ItineraryAnalysisOutputSchema}}
+
+עבור כל יום, נסה לזהות בטקסט אתרים ספציפיים (שמות של מקומות) ושעות ביקור אם הן מצוינות. אם יש שעה ופעילות, הכנס אותן לשדה ה-sites.
 
 השתמש במסמך המצורף כמקור העיקרי למידע. אם שם הקובץ זמין, השתמש בו כהקשר נוסף:
 קובץ מצורף: {{media url=documentDataUri}}
