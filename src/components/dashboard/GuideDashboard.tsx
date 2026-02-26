@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -40,7 +41,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
       content,
       timestamp: new Date().toISOString()
     };
-    setTrip(prev => ({ ...prev, notices: [newNotice, ...prev.notices] }));
+    setTrip(prev => ({ ...prev, notices: [newNotice, ...(prev.notices || [])] }));
     toast({ title: "הודעה פורסמה", description: "כל החניכים קיבלו עדכון." });
   };
 
@@ -60,7 +61,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
   const endRestStop = () => {
     setTrip(prev => {
       const { activeRestStop, ...rest } = prev;
-      return rest;
+      return rest as Trip;
     });
     toast({ title: "העצירה הסתיימה" });
   };
@@ -78,7 +79,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
   const endBoarding = () => {
     setTrip(prev => {
       const { activeBoarding, ...rest } = prev;
-      return rest;
+      return rest as Trip;
     });
     toast({ title: "העלייה לאוטובוס הסתיימה" });
   };
@@ -94,7 +95,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
     if (!newContact.name || !newContact.phone) return;
     setTrip(prev => ({
       ...prev,
-      emergencyContacts: [...prev.emergencyContacts, { ...newContact }]
+      emergencyContacts: [...(prev.emergencyContacts || []), { ...newContact }]
     }));
     setNewContact({ name: "", phone: "" });
   };
@@ -102,7 +103,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
   const removeContact = (index: number) => {
     setTrip(prev => ({
       ...prev,
-      emergencyContacts: prev.emergencyContacts.filter((_, i) => i !== index)
+      emergencyContacts: (prev.emergencyContacts || []).filter((_, i) => i !== index)
     }));
   };
 
@@ -195,7 +196,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
                   <span>השכמה:</span>
                   <input 
                     type="time" 
-                    value={trip.wakeUpTime} 
+                    value={trip.wakeUpTime || ""} 
                     onChange={(e) => updateTimes('wake', e.target.value)}
                     className="border rounded px-2 py-1"
                   />
@@ -204,7 +205,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
                   <span>כיבוי אורות:</span>
                   <input 
                     type="time" 
-                    value={trip.lightsOutTime} 
+                    value={trip.lightsOutTime || ""} 
                     onChange={(e) => updateTimes('light', e.target.value)}
                     className="border rounded px-2 py-1"
                   />
@@ -227,7 +228,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
         </TabsContent>
 
         <TabsContent value="itinerary">
-          <ItineraryManager itinerary={trip.itinerary} setItinerary={(newIt) => setTrip(prev => ({...prev, itinerary: newIt}))} />
+          <ItineraryManager itinerary={trip.itinerary || []} setItinerary={(newIt) => setTrip(prev => ({...prev, itinerary: newIt}))} />
         </TabsContent>
 
         <TabsContent value="logistics">
@@ -261,7 +262,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
               </div>
 
               <div className="space-y-2 mt-4">
-                {trip.emergencyContacts.map((contact, idx) => (
+                {(trip.emergencyContacts || []).map((contact, idx) => (
                   <div key={idx} className="flex justify-between items-center p-3 border rounded-lg">
                     <div>
                       <p className="font-bold">{contact.name}</p>

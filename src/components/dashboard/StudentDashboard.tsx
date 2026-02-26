@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -10,14 +11,13 @@ import { ClothingAdvisor } from "@/components/features/ClothingAdvisor";
 import { CountdownTimer } from "@/components/features/CountdownTimer";
 import { 
   MapPin, 
-  Megaphone, 
-  Calendar, 
-  BookOpen, 
   LogOut,
   Bus,
   CheckCircle2,
   PhoneCall,
-  Coffee
+  Coffee,
+  Calendar,
+  BookOpen
 } from "lucide-react";
 
 interface StudentDashboardProps {
@@ -56,7 +56,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
     });
   };
 
-  const currentDay = trip.itinerary[0];
+  const currentDay = trip.itinerary && trip.itinerary.length > 0 ? trip.itinerary[0] : null;
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 pb-32">
@@ -154,7 +154,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-2">
-          {trip.emergencyContacts.map((contact, idx) => (
+          {(trip.emergencyContacts || []).map((contact, idx) => (
             <Button 
               key={idx} 
               variant="outline" 

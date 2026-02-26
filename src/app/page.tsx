@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -34,12 +35,28 @@ export default function Home() {
   useEffect(() => {
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem("masaon_user");
+      }
     }
     
     const savedTrip = localStorage.getItem("masaon_trip");
     if (savedTrip) {
-      setTrip(JSON.parse(savedTrip));
+      try {
+        const parsedTrip = JSON.parse(savedTrip);
+        // Merge with initial mock to ensure all required fields exist
+        setTrip({ 
+          ...MOCK_INITIAL_TRIP, 
+          ...parsedTrip,
+          emergencyContacts: parsedTrip.emergencyContacts || MOCK_INITIAL_TRIP.emergencyContacts,
+          itinerary: parsedTrip.itinerary || MOCK_INITIAL_TRIP.itinerary,
+          notices: parsedTrip.notices || MOCK_INITIAL_TRIP.notices
+        });
+      } catch (e) {
+        setTrip(MOCK_INITIAL_TRIP);
+      }
     }
     
     setIsLoaded(true);
@@ -51,7 +68,11 @@ export default function Home() {
       
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === "masaon_trip" && e.newValue) {
-          setTrip(JSON.parse(e.newValue));
+          try {
+            setTrip(JSON.parse(e.newValue));
+          } catch (err) {
+            console.error("Failed to parse storage update", err);
+          }
         }
       };
       window.addEventListener("storage", handleStorageChange);
