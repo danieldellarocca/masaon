@@ -7,11 +7,17 @@ export interface User {
   tripId?: string;
 }
 
+export interface SiteVisit {
+  name: string;
+  time: string;
+}
+
 export interface ItineraryDay {
   dayNumber: number;
   date: string;
   location: string;
   activities: string;
+  sites?: SiteVisit[];
 }
 
 export interface EmergencyContact {

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -10,6 +9,13 @@ import { RoomReportForm } from "@/components/features/RoomReportForm";
 import { ClothingAdvisor } from "@/components/features/ClothingAdvisor";
 import { CountdownTimer } from "@/components/features/CountdownTimer";
 import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { 
   MapPin, 
   LogOut,
   Bus,
@@ -17,7 +23,7 @@ import {
   PhoneCall,
   Coffee,
   Calendar,
-  BookOpen
+  Clock
 } from "lucide-react";
 
 interface StudentDashboardProps {
@@ -29,6 +35,7 @@ interface StudentDashboardProps {
 
 export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashboardProps) {
   const [showRoomReport, setShowRoomReport] = useState(false);
+  const [showItinerary, setShowItinerary] = useState(false);
 
   const confirmPresence = (type: 'rest' | 'bus') => {
     setTrip(prev => {
@@ -59,7 +66,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
   const currentDay = trip.itinerary && trip.itinerary.length > 0 ? trip.itinerary[0] : null;
 
   return (
-    <div className="max-w-md mx-auto p-4 space-y-6 pb-32">
+    <div className="max-w-md mx-auto p-4 space-y-6 pb-32 relative min-h-screen">
       <header className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-primary">שלום, {user.name}</h1>
@@ -172,19 +179,44 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       <ClothingAdvisor location={currentDay?.location || "ירושלים"} />
 
       {/* Main Grid Actions */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="hover:border-primary cursor-pointer transition-colors" onClick={() => {}}>
-          <CardContent className="pt-6 flex flex-col items-center gap-2">
-            <Calendar className="text-primary" />
-            <span className="text-sm font-semibold">לוח זמנים</span>
-          </CardContent>
-        </Card>
-        <Card className="hover:border-primary cursor-pointer transition-colors">
-          <CardContent className="pt-6 flex flex-col items-center gap-2">
-            <BookOpen className="text-primary" />
-            <span className="text-sm font-semibold">כיס-ספר</span>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-4">
+        <Dialog open={showItinerary} onOpenChange={setShowItinerary}>
+          <DialogTrigger asChild>
+            <Card className="hover:border-primary cursor-pointer transition-colors">
+              <CardContent className="pt-6 flex flex-col items-center gap-2">
+                <Calendar className="text-primary" />
+                <span className="text-sm font-semibold">לוח זמנים מפורט</span>
+              </CardContent>
+            </Card>
+          </DialogTrigger>
+          <DialogContent className="max-h-[80vh] overflow-y-auto" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>לוח זמני המסע</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 pt-4">
+              {trip.itinerary.map((day, idx) => (
+                <div key={idx} className="border-r-4 border-primary pr-4 py-2 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-lg">יום {day.dayNumber} - {day.location}</h3>
+                    <span className="text-xs bg-muted px-2 py-1 rounded">{day.date}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground italic">{day.activities}</p>
+                  {day.sites && day.sites.length > 0 && (
+                    <div className="space-y-2 mt-2">
+                      {day.sites.map((site, sIdx) => (
+                        <div key={sIdx} className="flex items-center gap-2 bg-muted/30 p-2 rounded text-sm">
+                          <Clock className="w-4 h-4 text-primary" />
+                          <span className="font-semibold">{site.time}:</span>
+                          <span>{site.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Report Issues */}
@@ -195,7 +227,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
           onClick={() => setShowRoomReport(true)}
         >
           <span>דיווח על תקלה בחדר</span>
-          <BookOpen className="w-4 h-4 opacity-50" />
+          <CheckCircle2 className="w-4 h-4 opacity-50" />
         </Button>
       </div>
 

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,8 +11,26 @@ const MOCK_INITIAL_TRIP: Trip = {
   name: "מסע ישראלי 2024",
   joinCode: "ISRAEL24",
   itinerary: [
-    { dayNumber: 1, date: "2024-05-01", location: "ירושלים", activities: "סיור בעיר העתיקה, כותל המערבי" },
-    { dayNumber: 2, date: "2024-05-02", location: "מדבר יהודה", activities: "טיול במצדה, רחצה בים המלח" }
+    { 
+      dayNumber: 1, 
+      date: "2024-05-01", 
+      location: "ירושלים", 
+      activities: "סיור בעיר העתיקה, כותל המערבי",
+      sites: [
+        { name: "שער יפו", time: "09:00 - 10:30" },
+        { name: "הכותל המערבי", time: "11:00 - 13:00" }
+      ]
+    },
+    { 
+      dayNumber: 2, 
+      date: "2024-05-02", 
+      location: "מדבר יהודה", 
+      activities: "טיול במצדה, רחצה בים המלח",
+      sites: [
+        { name: "מצדה", time: "08:00 - 11:30" },
+        { name: "עין גדי", time: "12:00 - 14:00" }
+      ]
+    }
   ],
   notices: [
     { id: "1", content: "מחר יוצאים ב-07:00 בדיוק!", timestamp: new Date().toISOString() }
@@ -46,7 +63,6 @@ export default function Home() {
     if (savedTrip) {
       try {
         const parsedTrip = JSON.parse(savedTrip);
-        // Merge with initial mock to ensure all required fields exist
         setTrip({ 
           ...MOCK_INITIAL_TRIP, 
           ...parsedTrip,

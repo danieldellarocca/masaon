@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ItineraryDay } from "@/lib/types";
+import { ItineraryDay, SiteVisit } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileUp, Loader2, Sparkles, Plus, Trash2 } from "lucide-react";
+import { FileUp, Loader2, Sparkles, Plus, Trash2, Clock } from "lucide-react";
 import { analyzeItineraryForGuide } from "@/ai/flows/itinerary-analysis-for-guide";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,7 +35,12 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
         });
         
         if (result && result.itineraryDays) {
-          setItinerary(result.itineraryDays);
+          // Normalize results to include empty sites if missing
+          const normalizedDays = result.itineraryDays.map(day => ({
+            ...day,
+            sites: day.sites || []
+          }));
+          setItinerary(normalizedDays);
           toast({ 
             title: "המסלול נותח בהצלחה!", 
             description: `זוהו ${result.itineraryDays.length} ימי טיול עבור ${result.tripName}.` 
@@ -65,11 +70,32 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
 
   const addDay = () => {
     const nextDay = itinerary.length + 1;
-    setItinerary([...itinerary, { dayNumber: nextDay, date: "", location: "", activities: "" }]);
+    setItinerary([...itinerary, { dayNumber: nextDay, date: "", location: "", activities: "", sites: [] }]);
   };
 
   const deleteDay = (index: number) => {
     setItinerary(itinerary.filter((_, i) => i !== index));
+  };
+
+  const addSite = (dayIdx: number) => {
+    const newIt = [...itinerary];
+    if (!newIt[dayIdx].sites) newIt[dayIdx].sites = [];
+    newIt[dayIdx].sites!.push({ name: "", time: "" });
+    setItinerary(newIt);
+  };
+
+  const removeSite = (dayIdx: number, siteIdx: number) => {
+    const newIt = [...itinerary];
+    newIt[dayIdx].sites = newIt[dayIdx].sites?.filter((_, i) => i !== siteIdx);
+    setItinerary(newIt);
+  };
+
+  const updateSite = (dayIdx: number, siteIdx: number, field: keyof SiteVisit, value: string) => {
+    const newIt = [...itinerary];
+    if (newIt[dayIdx].sites) {
+      newIt[dayIdx].sites![siteIdx][field] = value;
+    }
+    setItinerary(newIt);
   };
 
   return (
@@ -108,25 +134,28 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
                 <Trash2 className="w-4 h-4 text-destructive" />
               </Button>
             </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label>תאריך</Label>
-                <Input type="date" value={day.date} onChange={(e) => {
-                  const newIt = [...itinerary];
-                  newIt[idx].date = e.target.value;
-                  setItinerary(newIt);
-                }} />
+            <CardContent className="pt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>תאריך</Label>
+                  <Input type="date" value={day.date} onChange={(e) => {
+                    const newIt = [...itinerary];
+                    newIt[idx].date = e.target.value;
+                    setItinerary(newIt);
+                  }} />
+                </div>
+                <div className="space-y-1">
+                  <Label>מיקום</Label>
+                  <Input value={day.location} onChange={(e) => {
+                    const newIt = [...itinerary];
+                    newIt[idx].location = e.target.value;
+                    setItinerary(newIt);
+                  }} />
+                </div>
               </div>
+
               <div className="space-y-1">
-                <Label>מיקום</Label>
-                <Input value={day.location} onChange={(e) => {
-                  const newIt = [...itinerary];
-                  newIt[idx].location = e.target.value;
-                  setItinerary(newIt);
-                }} />
-              </div>
-              <div className="col-span-2 space-y-1">
-                <Label>פעילויות</Label>
+                <Label>פעילויות כלליות</Label>
                 <textarea 
                   className="w-full text-sm border rounded-md p-2 h-20"
                   value={day.activities}
@@ -136,6 +165,37 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
                     setItinerary(newIt);
                   }}
                 />
+              </div>
+
+              {/* Sites Section */}
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex justify-between items-center">
+                  <Label className="font-bold">אתרים ושעות ביקור</Label>
+                  <Button variant="outline" size="sm" onClick={() => addSite(idx)} className="h-7 text-xs gap-1">
+                    <Plus className="w-3 h-3" /> הוסף אתר
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {(day.sites || []).map((site, sIdx) => (
+                    <div key={sIdx} className="flex gap-2 items-center">
+                      <Input 
+                        placeholder="שעות (לדוג: 08:00-10:00)" 
+                        value={site.time} 
+                        className="flex-1 text-xs"
+                        onChange={(e) => updateSite(idx, sIdx, 'time', e.target.value)}
+                      />
+                      <Input 
+                        placeholder="שם האתר" 
+                        value={site.name} 
+                        className="flex-[2] text-xs"
+                        onChange={(e) => updateSite(idx, sIdx, 'name', e.target.value)}
+                      />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeSite(idx, sIdx)}>
+                        <Trash2 className="w-3 h-3 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>

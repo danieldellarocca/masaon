@@ -59,13 +59,13 @@ export function SOSButton() {
   };
 
   return (
-    <div className="fixed bottom-6 left-6 z-50">
+    <div className="fixed bottom-6 left-6 z-50 pointer-events-auto">
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button 
             size="lg" 
             disabled={sending}
-            className="rounded-full w-20 h-20 shadow-2xl bg-destructive hover:bg-destructive/90 animate-pulse border-4 border-white flex flex-col"
+            className="rounded-full w-20 h-20 shadow-2xl bg-destructive hover:bg-destructive/90 animate-pulse border-4 border-white flex flex-col items-center justify-center p-0"
           >
             {sending ? (
               <Loader2 className="w-8 h-8 animate-spin" />
@@ -77,10 +77,10 @@ export function SOSButton() {
             )}
           </Button>
         </AlertDialogTrigger>
-        <AlertDialogContent dir="rtl">
+        <AlertDialogContent dir="rtl" className="z-[100]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive text-right">האם אתה בטוח?</AlertDialogTitle>
-            <AlertDialogDescription className="text-right">
+            <AlertDialogDescription className="text-right text-foreground">
               לחיצה על כפתור זה תשלח את מיקומך המדויק לכל המלווים בטיול באופן מיידי. השתמש בכך רק במקרי חירום אמיתיים.
             </AlertDialogDescription>
           </AlertDialogHeader>
