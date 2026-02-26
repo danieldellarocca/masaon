@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -125,7 +126,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
       ...prev,
       reports: (prev.reports || []).map(r => r.id === reportId ? { ...r, status: 'resolved' } : r)
     }));
-    toast({ title: "התקלה סומנה כטופלה" });
+    toast({ title: "התקלה דווחה למלון", description: "החניך קיבל עדכון על כך." });
   };
 
   return (
@@ -305,7 +306,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
                               {report.status === 'open' ? (
                                 <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">פתוח</span>
                               ) : (
-                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">טופל</span>
+                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">דווח למלון</span>
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">{report.studentName}</p>
@@ -338,7 +339,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
                             onClick={() => resolveReport(report.id)}
                           >
                             <Check className="w-3 h-3 ml-1" />
-                            סמן כטופל
+                            דווח למלון / טופל
                           </Button>
                         )}
                       </CardContent>

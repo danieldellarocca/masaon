@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -25,8 +26,11 @@ import {
   Calendar,
   Clock,
   Loader2,
-  Navigation
+  Navigation,
+  AlertCircle,
+  Info
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface StudentDashboardProps {
   user: User;
@@ -149,6 +153,15 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
     return trip.itinerary[0]?.sites?.[0]?.name || "האתר הבא";
   }, [trip.itinerary]);
 
+  // Filter student's reports to show status
+  const myReports = useMemo(() => {
+    return (trip.reports || []).filter(r => r.studentId === user.id);
+  }, [trip.reports, user.id]);
+
+  const hasResolvedReports = useMemo(() => {
+    return myReports.some(r => r.status === 'resolved');
+  }, [myReports]);
+
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 pb-40 relative min-h-screen">
       <header className="flex justify-between items-center">
@@ -160,6 +173,21 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
           <LogOut className="w-5 h-5" />
         </Button>
       </header>
+
+      {/* Resolved Reports Feedback */}
+      {hasResolvedReports && (
+        <div className="space-y-2">
+          {myReports.filter(r => r.status === 'resolved').map(report => (
+            <Alert key={report.id} className="bg-green-50 border-green-200 text-green-800">
+              <Info className="h-4 w-4 text-green-600" />
+              <AlertTitle className="font-bold">עדכון תקלה - חדר {report.roomNumber}</AlertTitle>
+              <AlertDescription className="text-sm">
+                המלון עודכן בתקלה שדיווחת ("{report.description}") והיא בטיפול.
+              </AlertDescription>
+            </Alert>
+          ))}
+        </div>
+      )}
 
       {/* Active Session Alerts */}
       {trip.activeRestStop && (
