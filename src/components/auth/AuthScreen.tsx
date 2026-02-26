@@ -20,8 +20,8 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   const [code, setCode] = useState("");
   const [isHuman, setIsHuman] = useState(false);
 
-  // Google reCAPTCHA Test Site Key (Works on localhost/development)
-  const RECAPTCHA_SITE_KEY = "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
+  // Updated with the user-provided reCAPTCHA Enterprise Site Key
+  const RECAPTCHA_SITE_KEY = "6Ldn1ngsAAAAADdFNFyMKm0QFXAO2bmalstxgKcZ";
 
   const handleCaptchaChange = (value: string | null) => {
     if (value) {
