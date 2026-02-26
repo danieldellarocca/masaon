@@ -1,12 +1,14 @@
+
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Role, User } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { UserCircle, GraduationCap, MapPin, ShieldCheck } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import ReCAPTCHA from "react-google-recaptcha";
 
 interface AuthScreenProps {
   onLogin: (user: User, customJoinCode?: string) => void;
@@ -16,27 +18,13 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   const [role, setRole] = useState<Role | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  
-  // Captcha state
-  const [num1, setNum1] = useState(0);
-  const [num2, setNum2] = useState(0);
-  const [captchaInput, setCaptchaInput] = useState("");
   const [isHuman, setIsHuman] = useState(false);
 
-  useEffect(() => {
-    generateCaptcha();
-  }, [role]);
+  // Google reCAPTCHA Test Site Key (Works on localhost/development)
+  const RECAPTCHA_SITE_KEY = "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
-  const generateCaptcha = () => {
-    setNum1(Math.floor(Math.random() * 10) + 1);
-    setNum2(Math.floor(Math.random() * 10) + 1);
-    setCaptchaInput("");
-    setIsHuman(false);
-  };
-
-  const handleCaptchaChange = (value: string) => {
-    setCaptchaInput(value);
-    if (parseInt(value) === num1 + num2) {
+  const handleCaptchaChange = (value: string | null) => {
+    if (value) {
       setIsHuman(true);
     } else {
       setIsHuman(false);
@@ -118,28 +106,20 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                 </div>
               )}
 
-              {/* Human Verification Section */}
-              <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+              {/* Google reCAPTCHA Section */}
+              <div className="space-y-3 py-2">
                 <div className="flex items-center gap-2 text-sm font-bold text-primary mb-1">
                   <ShieldCheck className="w-4 h-4" />
                   אימות אנושי
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-lg font-bold bg-white px-3 py-1 rounded border shadow-sm">
-                    {num1} + {num2} = ?
-                  </div>
-                  <Input
-                    type="number"
-                    placeholder="תשובה"
-                    className="w-24"
-                    value={captchaInput}
-                    onChange={(e) => handleCaptchaChange(e.target.value)}
+                <div className="flex justify-center">
+                  <ReCAPTCHA
+                    sitekey={RECAPTCHA_SITE_KEY}
+                    onChange={handleCaptchaChange}
+                    hl="iw" // Hebrew language
                   />
-                  {isHuman && (
-                    <span className="text-green-600 font-bold text-sm animate-in zoom-in duration-300">✓ אומת</span>
-                  )}
                 </div>
-                <p className="text-[10px] text-muted-foreground">נא לפתור את התרגיל כדי לוודא שאינך בוט.</p>
+                <p className="text-[10px] text-center text-muted-foreground italic">נא לאשר שאינך רובוט כדי להמשיך.</p>
               </div>
 
               <Button 
