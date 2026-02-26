@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,19 +7,12 @@ import { AuthScreen } from "@/components/auth/AuthScreen";
 import { GuideDashboard } from "@/components/dashboard/GuideDashboard";
 import { StudentDashboard } from "@/components/dashboard/StudentDashboard";
 
-const MOCK_INITIAL_TRIP: Trip = {
+// Static initial state for the trip to avoid hydration mismatches
+const STATIC_INITIAL_TRIP: Trip = {
   id: "trip-1",
   name: "מסע חדש",
   joinCode: "WELCOME",
-  itinerary: [
-    { 
-      dayNumber: 1, 
-      date: new Date().toISOString().split('T')[0], 
-      location: "נקודת התחלה", 
-      activities: "התחלת המסע",
-      sites: []
-    }
-  ],
+  itinerary: [],
   notices: [],
   logistics: [],
   emergencyContacts: [
@@ -33,10 +27,11 @@ const MOCK_INITIAL_TRIP: Trip = {
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  const [trip, setTrip] = useState<Trip>(MOCK_INITIAL_TRIP);
+  const [trip, setTrip] = useState<Trip>(STATIC_INITIAL_TRIP);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
+    // Load data only on client-side to prevent hydration errors
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
       try {
@@ -50,18 +45,33 @@ export default function Home() {
     if (savedTrip) {
       try {
         const parsedTrip = JSON.parse(savedTrip);
-        setTrip({ 
-          ...MOCK_INITIAL_TRIP, 
+        setTrip(prev => ({ 
+          ...prev, 
           ...parsedTrip,
-          emergencyContacts: parsedTrip.emergencyContacts || MOCK_INITIAL_TRIP.emergencyContacts,
-          itinerary: parsedTrip.itinerary || MOCK_INITIAL_TRIP.itinerary,
-          notices: parsedTrip.notices || MOCK_INITIAL_TRIP.notices,
+          // Ensure arrays are initialized if missing in saved data
+          emergencyContacts: parsedTrip.emergencyContacts || prev.emergencyContacts,
+          itinerary: parsedTrip.itinerary || prev.itinerary,
+          notices: parsedTrip.notices || [],
           students: parsedTrip.students || [],
           reports: parsedTrip.reports || []
-        });
+        }));
       } catch (e) {
-        setTrip(MOCK_INITIAL_TRIP);
+        console.error("Failed to parse saved trip", e);
       }
+    } else {
+      // Set a dynamic date only on client side
+      setTrip(prev => ({
+        ...prev,
+        itinerary: [
+          { 
+            dayNumber: 1, 
+            date: new Date().toISOString().split('T')[0], 
+            location: "נקודת התחלה", 
+            activities: "התחלת המסע",
+            sites: []
+          }
+        ]
+      }));
     }
     
     setIsLoaded(true);
@@ -93,7 +103,7 @@ export default function Home() {
       setTrip(prev => ({
         ...prev,
         joinCode: customJoinCode,
-        students: [] // Reset students for a brand new trip
+        students: []
       }));
     }
 
@@ -114,7 +124,11 @@ export default function Home() {
     localStorage.removeItem("masaon_user");
   };
 
-  if (!isLoaded) return null;
+  if (!isLoaded) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="animate-pulse text-primary font-bold">טוען מסעון...</div>
+    </div>
+  );
 
   if (!user) {
     return <AuthScreen onLogin={handleLogin} />;

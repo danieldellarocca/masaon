@@ -49,9 +49,8 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
   const [distanceToNext, setDistanceToNext] = useState<string | null>(null);
 
-  // Helper: Haversine distance
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the earth in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -59,18 +58,16 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
       Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; // Distance in km
+    return R * c;
   };
 
-  // Identify next site and calculate distance
   useEffect(() => {
-    if (!coords || !trip.itinerary) return;
+    if (!coords || !trip.itinerary || trip.itinerary.length === 0) return;
 
-    const currentDay = trip.itinerary[0]; // Assuming day 1 for prototype
+    const currentDay = trip.itinerary[0];
     const nextSite = currentDay?.sites?.find(s => s.name);
 
     if (nextSite) {
-      // Mocking site coordinates for Jerusalem (approx) if not present
       const siteLat = nextSite.lat || 31.7683;
       const siteLng = nextSite.lng || 35.2137;
       
@@ -83,7 +80,6 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
     }
   }, [coords, trip.itinerary]);
 
-  // Reverse geocoding (Real Named Location)
   useEffect(() => {
     if (!coords) return;
 
@@ -93,6 +89,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}&zoom=18&addressdetails=1`,
           { headers: { 'Accept-Language': 'he' } }
         );
+        if (!response.ok) throw new Error("Network error");
         const data = await response.json();
         const name = data.display_name.split(',')[0] || data.address?.city || data.address?.town || "מיקום לא ידוע";
         setLocationName(name);
@@ -105,9 +102,8 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
     fetchPlaceName();
   }, [coords]);
 
-  // Get GPS Location
   useEffect(() => {
-    if ("geolocation" in navigator) {
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
       const watcher = navigator.geolocation.watchPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
@@ -157,14 +153,13 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
   };
 
   const currentItineraryLocation = useMemo(() => {
-    return trip.itinerary[0]?.location || "ירושלים";
+    return trip.itinerary?.[0]?.location || "ירושלים";
   }, [trip.itinerary]);
 
   const nextSiteName = useMemo(() => {
-    return trip.itinerary[0]?.sites?.[0]?.name || "האתר הבא";
+    return trip.itinerary?.[0]?.sites?.[0]?.name || "האתר הבא";
   }, [trip.itinerary]);
 
-  // Filter student's reports
   const myReports = useMemo(() => {
     return (trip.reports || []).filter(r => r.studentId === user.id);
   }, [trip.reports, user.id]);
@@ -181,14 +176,13 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
         </Button>
       </header>
 
-      {/* Report Status Alerts */}
       <div className="space-y-2">
         {myReports.filter(r => r.status === 'reported').map(report => (
           <Alert key={report.id} className="bg-blue-50 border-blue-200 text-blue-800">
             <Info className="h-4 w-4 text-blue-600" />
             <AlertTitle className="font-bold">עדכון תקלה - חדר {report.roomNumber}</AlertTitle>
             <AlertDescription className="text-sm space-y-2">
-              <p>המלון עודכן בתקלה שדיווחת ("{report.description}") והיא בטיפול.</p>
+              <p>המלון עודכן בתקלה שדיווחת והיא בטיפול.</p>
               <Button 
                 size="sm" 
                 className="w-full bg-blue-600 hover:bg-blue-700 h-8 text-xs"
@@ -200,18 +194,8 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
             </AlertDescription>
           </Alert>
         ))}
-        {myReports.filter(r => r.status === 'fixed').map(report => (
-          <Alert key={report.id} className="bg-green-50 border-green-200 text-green-800">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertTitle className="font-bold">התקלה טופלה</AlertTitle>
-            <AlertDescription className="text-sm">
-              התקלה בחדר {report.roomNumber} סומנה כטופלה בהצלחה.
-            </AlertDescription>
-          </Alert>
-        ))}
       </div>
 
-      {/* Active Session Alerts */}
       {trip.activeRestStop && (
         <Card className="border-green-500 bg-green-50 animate-in slide-in-from-top duration-500">
           <CardHeader className="pb-2">
@@ -261,7 +245,6 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
         </Card>
       )}
 
-      {/* Hero: Current Status */}
       <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-none shadow-lg overflow-hidden">
         <CardContent className="pt-6">
           <div className="flex items-center gap-4 mb-4">
@@ -292,7 +275,6 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
         </CardContent>
       </Card>
 
-      {/* Quick Calls */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -315,10 +297,8 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
         </CardContent>
       </Card>
 
-      {/* AI Features */}
       <ClothingAdvisor location={currentItineraryLocation} />
 
-      {/* Main Grid Actions */}
       <div className="grid grid-cols-1 gap-4">
         <Dialog open={showItinerary} onOpenChange={setShowItinerary}>
           <DialogTrigger asChild>
@@ -337,32 +317,35 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
               <DialogTitle>לוח זמני המסע</DialogTitle>
             </DialogHeader>
             <div className="space-y-6 pt-4">
-              {trip.itinerary.map((day, idx) => (
-                <div key={idx} className="border-r-4 border-primary pr-4 py-2 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-lg">יום {day.dayNumber} - {day.location}</h3>
-                    <span className="text-xs bg-muted px-2 py-1 rounded">{day.date}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground italic">{day.activities}</p>
-                  {day.sites && day.sites.length > 0 && (
-                    <div className="space-y-2 mt-2">
-                      {day.sites.map((site, sIdx) => (
-                        <div key={sIdx} className="flex items-center gap-2 bg-muted/30 p-2 rounded text-sm">
-                          <Clock className="w-4 h-4 text-primary" />
-                          <span className="font-semibold">{site.time}:</span>
-                          <span>{site.name}</span>
-                        </div>
-                      ))}
+              {trip.itinerary && trip.itinerary.length > 0 ? (
+                trip.itinerary.map((day, idx) => (
+                  <div key={idx} className="border-r-4 border-primary pr-4 py-2 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-bold text-lg">יום {day.dayNumber} - {day.location}</h3>
+                      <span className="text-xs bg-muted px-2 py-1 rounded">{day.date}</span>
                     </div>
-                  )}
-                </div>
-              ))}
+                    <p className="text-sm text-muted-foreground italic">{day.activities}</p>
+                    {day.sites && day.sites.length > 0 && (
+                      <div className="space-y-2 mt-2">
+                        {day.sites.map((site, sIdx) => (
+                          <div key={sIdx} className="flex items-center gap-2 bg-muted/30 p-2 rounded text-sm">
+                            <Clock className="w-4 h-4 text-primary" />
+                            <span className="font-semibold">{site.time}:</span>
+                            <span>{site.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground">אין מסלול מוגדר כרגע.</p>
+              )}
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Report Issues */}
       <div className="space-y-4">
         <Button 
           variant="outline" 
