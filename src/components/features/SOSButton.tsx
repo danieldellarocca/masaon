@@ -59,36 +59,36 @@ export function SOSButton() {
   };
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 pointer-events-auto">
+    <div className="fixed bottom-6 left-6 z-[100] pointer-events-auto">
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button 
             size="lg" 
             disabled={sending}
-            className="rounded-full w-20 h-20 shadow-2xl bg-destructive hover:bg-destructive/90 animate-pulse border-4 border-white flex flex-col items-center justify-center p-0"
+            className="rounded-full w-24 h-24 shadow-2xl bg-destructive hover:bg-destructive/90 animate-pulse border-4 border-white flex flex-col items-center justify-center p-0"
           >
             {sending ? (
               <Loader2 className="w-8 h-8 animate-spin" />
             ) : (
               <>
-                <AlertTriangle className="w-8 h-8 mb-1" />
-                <span className="text-[10px] font-bold">SOS</span>
+                <AlertTriangle className="w-10 h-10 mb-1" />
+                <span className="text-xs font-black">מצוקה SOS</span>
               </>
             )}
           </Button>
         </AlertDialogTrigger>
-        <AlertDialogContent dir="rtl" className="z-[100]">
+        <AlertDialogContent dir="rtl" className="z-[150]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive text-right">האם אתה בטוח?</AlertDialogTitle>
-            <AlertDialogDescription className="text-right text-foreground">
-              לחיצה על כפתור זה תשלח את מיקומך המדויק לכל המלווים בטיול באופן מיידי. השתמש בכך רק במקרי חירום אמיתיים.
+            <AlertDialogTitle className="text-destructive text-right text-2xl">קריאת SOS דחופה</AlertDialogTitle>
+            <AlertDialogDescription className="text-right text-foreground text-lg">
+              האם אתה בטוח? לחיצה תשלח את מיקומך המדויק לכל המלווים בטיול באופן מיידי.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogAction onClick={handleSOS} className="bg-destructive hover:bg-destructive/90 flex-1">
+          <AlertDialogFooter className="flex-row-reverse gap-2 mt-6">
+            <AlertDialogAction onClick={handleSOS} className="bg-destructive hover:bg-destructive/90 flex-1 h-14 text-lg">
               שלח עכשיו
             </AlertDialogAction>
-            <AlertDialogCancel className="flex-1">ביטול</AlertDialogCancel>
+            <AlertDialogCancel className="flex-1 h-14 text-lg">ביטול</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

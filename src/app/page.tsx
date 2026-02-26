@@ -40,6 +40,7 @@ const MOCK_INITIAL_TRIP: Trip = {
     { name: "מוקד חירום ארצי", phone: "100" },
     { name: "מד\"א", phone: "101" }
   ],
+  reports: [],
   wakeUpTime: "06:30",
   lightsOutTime: "23:00"
 };
@@ -68,7 +69,8 @@ export default function Home() {
           ...parsedTrip,
           emergencyContacts: parsedTrip.emergencyContacts || MOCK_INITIAL_TRIP.emergencyContacts,
           itinerary: parsedTrip.itinerary || MOCK_INITIAL_TRIP.itinerary,
-          notices: parsedTrip.notices || MOCK_INITIAL_TRIP.notices
+          notices: parsedTrip.notices || MOCK_INITIAL_TRIP.notices,
+          reports: parsedTrip.reports || []
         });
       } catch (e) {
         setTrip(MOCK_INITIAL_TRIP);

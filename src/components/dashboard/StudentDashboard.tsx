@@ -66,7 +66,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
   const currentDay = trip.itinerary && trip.itinerary.length > 0 ? trip.itinerary[0] : null;
 
   return (
-    <div className="max-w-md mx-auto p-4 space-y-6 pb-32 relative min-h-screen">
+    <div className="max-w-md mx-auto p-4 space-y-6 pb-40 relative min-h-screen">
       <header className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-primary">שלום, {user.name}</h1>
@@ -168,7 +168,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
               className="text-xs h-auto py-2 flex flex-col gap-1 border-primary/20 hover:bg-primary/5"
               onClick={() => window.location.href = `tel:${contact.phone}`}
             >
-              <span className="font-bold truncate w-full">{contact.name}</span>
+              <span className="font-bold truncate w-full text-right">{contact.name}</span>
               <span className="text-muted-foreground">{contact.phone}</span>
             </Button>
           ))}
@@ -182,10 +182,10 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       <div className="grid grid-cols-1 gap-4">
         <Dialog open={showItinerary} onOpenChange={setShowItinerary}>
           <DialogTrigger asChild>
-            <Card className="hover:border-primary cursor-pointer transition-colors">
+            <Card className="hover:border-primary cursor-pointer transition-colors shadow-sm">
               <CardContent className="pt-6 flex flex-col items-center gap-2">
-                <Calendar className="text-primary" />
-                <span className="text-sm font-semibold">לוח זמנים מפורט</span>
+                <Calendar className="text-primary w-8 h-8" />
+                <span className="text-base font-bold text-primary">לוח זמנים מפורט</span>
               </CardContent>
             </Card>
           </DialogTrigger>
@@ -223,18 +223,23 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       <div className="space-y-4">
         <Button 
           variant="outline" 
-          className="w-full flex justify-between h-12"
+          className="w-full flex justify-between h-14 font-bold border-2"
           onClick={() => setShowRoomReport(true)}
         >
           <span>דיווח על תקלה בחדר</span>
-          <CheckCircle2 className="w-4 h-4 opacity-50" />
+          <CheckCircle2 className="w-5 h-5 text-primary" />
         </Button>
       </div>
 
       <SOSButton />
 
       {showRoomReport && (
-        <RoomReportForm onClose={() => setShowRoomReport(false)} studentName={user.name} />
+        <RoomReportForm 
+          onClose={() => setShowRoomReport(false)} 
+          studentName={user.name} 
+          studentId={user.id}
+          setTrip={setTrip}
+        />
       )}
     </div>
   );

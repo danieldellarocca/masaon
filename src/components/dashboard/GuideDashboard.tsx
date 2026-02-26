@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useState } from "react";
-import { User, Trip, Notice, EmergencyContact } from "@/lib/types";
+import { User, Trip, Notice } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -16,12 +15,18 @@ import {
   Bus,
   Phone,
   Plus,
-  Trash2
+  Trash2,
+  Edit2,
+  Check,
+  AlertCircle,
+  Calendar,
+  Image as ImageIcon
 } from "lucide-react";
 import { NoticeBoard } from "@/components/features/NoticeBoard";
 import { BoardingCheck } from "@/components/features/BoardingCheck";
 import { ItineraryManager } from "@/components/features/ItineraryManager";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 interface GuideDashboardProps {
   user: User;
@@ -34,6 +39,8 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
   const { toast } = useToast();
   const [stopMinutes, setStopMinutes] = useState("15");
   const [newContact, setNewContact] = useState({ name: "", phone: "" });
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempTripName, setTempTripName] = useState(trip.name);
 
   const addNotice = (content: string) => {
     const newNotice: Notice = {
@@ -107,11 +114,43 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
     }));
   };
 
+  const saveTripName = () => {
+    setTrip(prev => ({ ...prev, name: tempTripName }));
+    setIsEditingName(false);
+    toast({ title: "שם המסע עודכן" });
+  };
+
+  const resolveReport = (reportId: string) => {
+    setTrip(prev => ({
+      ...prev,
+      reports: (prev.reports || []).map(r => r.id === reportId ? { ...r, status: 'resolved' } : r)
+    }));
+    toast({ title: "התקלה סומנה כטופלה" });
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6 pb-24">
       <header className="flex justify-between items-center bg-card p-4 rounded-xl shadow-sm border">
-        <div>
-          <h1 className="text-xl font-bold text-primary">{trip.name}</h1>
+        <div className="flex-1">
+          {isEditingName ? (
+            <div className="flex items-center gap-2">
+              <Input 
+                value={tempTripName} 
+                onChange={(e) => setTempTripName(e.target.value)}
+                className="max-w-[200px]"
+              />
+              <Button size="icon" variant="ghost" onClick={saveTripName}>
+                <Check className="w-4 h-4 text-green-600" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-primary">{trip.name}</h1>
+              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setIsEditingName(true)}>
+                <Edit2 className="w-3 h-3" />
+              </Button>
+            </div>
+          )}
           <p className="text-sm text-muted-foreground">שלום, {user.name} (מלווה)</p>
           <div className="mt-1 bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full text-xs font-semibold inline-block">
             קוד הצטרפות: {trip.joinCode}
@@ -123,10 +162,18 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
       </header>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid grid-cols-4 mb-6">
+        <TabsList className="grid grid-cols-5 mb-6">
           <TabsTrigger value="overview">כללי</TabsTrigger>
           <TabsTrigger value="itinerary">מסלול</TabsTrigger>
           <TabsTrigger value="logistics">לוגיסטיקה</TabsTrigger>
+          <TabsTrigger value="reports" className="relative">
+            תקלות
+            {trip.reports?.filter(r => r.status === 'open').length ? (
+              <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+                {trip.reports.filter(r => r.status === 'open').length}
+              </span>
+            ) : null}
+          </TabsTrigger>
           <TabsTrigger value="emergency">חירום</TabsTrigger>
         </TabsList>
 
@@ -233,6 +280,74 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
 
         <TabsContent value="logistics">
           <BoardingCheck trip={trip} setTrip={setTrip} />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-primary" />
+                דיווחים על תקלות בחדרים
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(!trip.reports || trip.reports.length === 0) ? (
+                <div className="text-center py-8 text-muted-foreground">אין תקלות מדווחות כרגע.</div>
+              ) : (
+                <div className="grid gap-4">
+                  {trip.reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(report => (
+                    <Card key={report.id} className={report.status === 'resolved' ? 'opacity-60 grayscale' : 'border-destructive/30'}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-lg">חדר {report.roomNumber}</span>
+                              {report.status === 'open' ? (
+                                <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">פתוח</span>
+                              ) : (
+                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">טופל</span>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">{report.studentName}</p>
+                          </div>
+                          <div className="text-left text-[10px] text-muted-foreground">
+                            {new Date(report.timestamp).toLocaleString('he-IL')}
+                          </div>
+                        </div>
+                        
+                        <p className="text-sm bg-muted/30 p-2 rounded">{report.description}</p>
+                        
+                        {report.photoUrl && (
+                          <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted group">
+                            <Image 
+                              src={report.photoUrl} 
+                              alt="Room fault" 
+                              fill 
+                              className="object-cover"
+                              data-ai-hint="Room fault"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <ImageIcon className="text-white w-8 h-8" />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {report.status === 'open' && (
+                          <Button 
+                            className="w-full h-8 text-xs bg-green-600 hover:bg-green-700" 
+                            onClick={() => resolveReport(report.id)}
+                          >
+                            <Check className="w-3 h-3 ml-1" />
+                            סמן כטופל
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="emergency">

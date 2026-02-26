@@ -33,6 +33,7 @@ export interface Trip {
   notices: Notice[];
   logistics: BoardingStatus[];
   emergencyContacts: EmergencyContact[];
+  reports?: RoomReport[];
   wakeUpTime?: string;
   lightsOutTime?: string;
   activeRestStop?: {
@@ -65,4 +66,6 @@ export interface RoomReport {
   description: string;
   status: 'open' | 'resolved';
   timestamp: string;
+  photoUrl?: string;
 }
+
