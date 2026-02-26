@@ -35,15 +35,19 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
         });
         
         if (result && result.itineraryDays) {
-          // Normalize results to include empty sites if missing
-          const normalizedDays = result.itineraryDays.map(day => ({
-            ...day,
+          // Normalize results to ensure all required UI fields exist even if AI didn't find them
+          const normalizedDays: ItineraryDay[] = result.itineraryDays.map(day => ({
+            dayNumber: day.dayNumber,
+            date: day.date || "",
+            location: day.location || "",
+            activities: day.activities || "",
             sites: day.sites || []
           }));
+          
           setItinerary(normalizedDays);
           toast({ 
-            title: "המסלול נותח בהצלחה!", 
-            description: `זוהו ${result.itineraryDays.length} ימי טיול עבור ${result.tripName}.` 
+            title: "המסלול נותח!", 
+            description: `זוהו ${result.itineraryDays.length} ימי טיול. אנא ודא שהפרטים מדויקים והשלם חוסרים.` 
           });
         } else {
           throw new Error("Invalid response structure");
@@ -53,7 +57,7 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
         toast({ 
           variant: "destructive", 
           title: "שגיאה בניתוח הקובץ", 
-          description: "לא הצלחנו לנתח את הקובץ. אנא נסה קובץ אחר או הזן ידנית." 
+          description: "לא הצלחנו לנתח את הקובץ באופן אוטומטי. ניתן להזין פרטים ידנית." 
         });
       } finally {
         setLoading(false);
@@ -106,8 +110,8 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               {loading ? <Loader2 className="animate-spin text-primary" /> : <FileUp className="text-primary" />}
             </div>
-            <p className="font-bold text-lg">טען תוכנית טיול (PDF/Word)</p>
-            <p className="text-sm text-muted-foreground">הבינה המלאכותית שלנו תחלץ עבורך את הימים והפעילויות</p>
+            <p className="font-bold text-lg">טען תוכנית טיול (PDF/Word/תמונה)</p>
+            <p className="text-sm text-muted-foreground">ה-AI יחלץ את מה שניתן, ואתה תוכל להשלים את השאר</p>
             <Input id="file-upload" type="file" className="hidden" onChange={handleFileUpload} disabled={loading} />
             <Button variant="outline" className="mt-2 pointer-events-none" disabled={loading}>
               <Sparkles className="w-4 h-4 ml-2 text-accent" />
@@ -146,7 +150,7 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
                 </div>
                 <div className="space-y-1">
                   <Label>מיקום</Label>
-                  <Input value={day.location} onChange={(e) => {
+                  <Input value={day.location} placeholder="לדוגמה: ירושלים" onChange={(e) => {
                     const newIt = [...itinerary];
                     newIt[idx].location = e.target.value;
                     setItinerary(newIt);
@@ -158,6 +162,7 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
                 <Label>פעילויות כלליות</Label>
                 <textarea 
                   className="w-full text-sm border rounded-md p-2 h-20"
+                  placeholder="פירוט כללי על היום..."
                   value={day.activities}
                   onChange={(e) => {
                     const newIt = [...itinerary];
@@ -167,10 +172,9 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
                 />
               </div>
 
-              {/* Sites Section */}
               <div className="space-y-3 pt-2 border-t">
                 <div className="flex justify-between items-center">
-                  <Label className="font-bold">אתרים ושעות ביקור</Label>
+                  <Label className="font-bold">אתרים ושעות ביקור (יפורט לחניך)</Label>
                   <Button variant="outline" size="sm" onClick={() => addSite(idx)} className="h-7 text-xs gap-1">
                     <Plus className="w-3 h-3" /> הוסף אתר
                   </Button>
@@ -179,7 +183,7 @@ export function ItineraryManager({ itinerary, setItinerary }: ItineraryManagerPr
                   {(day.sites || []).map((site, sIdx) => (
                     <div key={sIdx} className="flex gap-2 items-center">
                       <Input 
-                        placeholder="שעות (לדוג: 08:00-10:00)" 
+                        placeholder="שעות (08:00-10:00)" 
                         value={site.time} 
                         className="flex-1 text-xs"
                         onChange={(e) => updateSite(idx, sIdx, 'time', e.target.value)}

@@ -24,24 +24,25 @@ const ItineraryAnalysisInputSchema = z.object({
 export type ItineraryAnalysisInput = z.infer<typeof ItineraryAnalysisInputSchema>;
 
 const ItineraryAnalysisOutputSchema = z.object({
-  tripName: z.string().describe('The name of the trip.'),
-  tripSummary: z.string().describe('A brief overall summary of the trip itinerary.'),
+  tripName: z.string().optional().describe('The name of the trip, if found.'),
+  tripSummary: z.string().optional().describe('A brief overall summary of the trip itinerary, if found.'),
   itineraryDays: z
     .array(
       z.object({
         dayNumber: z.number().describe('The sequential day number of the trip.'),
         date: z
           .string()
-          .describe('The date for this day of the itinerary in YYYY-MM-DD format.'),
-        location: z.string().describe('The main location or city for this day.'),
-        activities: z.string().describe('A summary of activities planned for this day.'),
+          .optional()
+          .describe('The date for this day of the itinerary in YYYY-MM-DD format, if found.'),
+        location: z.string().optional().describe('The main location or city for this day, if found.'),
+        activities: z.string().optional().describe('A summary of activities planned for this day, if found.'),
         sites: z.array(z.object({
           name: z.string().describe('The name of the site or activity.'),
           time: z.string().describe('The planned time for this site visit, e.g., "09:00 - 10:30".')
         })).optional().describe('Detailed list of sites and visit times for this day.')
       })
     )
-    .describe('A structured list of daily itinerary details.'),
+    .describe('A structured list of daily itinerary details. Include even partial details.'),
 });
 export type ItineraryAnalysisOutput = z.infer<typeof ItineraryAnalysisOutputSchema>;
 
@@ -55,20 +56,19 @@ const prompt = ai.definePrompt({
   name: 'itineraryAnalysisPrompt',
   input: {schema: ItineraryAnalysisInputSchema},
   output: {schema: ItineraryAnalysisOutputSchema},
-  // Using gemini-1.5-flash for its multimodal capabilities
   model: 'googleai/gemini-1.5-flash',
-  prompt: `אתה עוזר ניתוח מסמכים מומחה. תפקידך לנתח את מסמך הטיול שסופק ולחלץ את פרטי המסלול המרכזיים.
+  prompt: `אתה עוזר ניתוח מסמכים מומחה. תפקידך לנתח את מסמך הטיול שסופק ולחלץ את פרטי המסלול.
 
-אנא ספק את המידע בפורמט JSON המחמיר הבא, תוך הקפדה על כל השדות והפורמטים:
+חלץ כמה שיותר מידע, גם אם הוא חלקי. אם לא מצאת שדה מסוים (כמו תאריך או שעה ספציפית), פשוט השאר אותו ריק או אל תכלול אותו ב-JSON, אך נסה לבנות את מבנה הימים בצורה הטובה ביותר לפי הטקסט.
+
+אנא ספק את המידע בפורמט JSON לפי הסכימה הבאה:
 {{json schema=ItineraryAnalysisOutputSchema}}
 
-עבור כל יום, נסה לזהות בטקסט אתרים ספציפיים (שמות של מקומות) ושעות ביקור אם הן מצוינות. אם יש שעה ופעילות, הכנס אותן לשדה ה-sites.
+התמקד בזיהוי ימים, מיקומים ואתרים. אם יש שעות - ציין אותן. אם אין - השאר ריק.
 
-השתמש במסמך המצורף כמקור העיקרי למידע. אם שם הקובץ זמין, השתמש בו כהקשר נוסף:
 קובץ מצורף: {{media url=documentDataUri}}
 {{#if documentFileName}}שם הקובץ: {{{documentFileName}}}{{/if}}
-
-חשוב: ודא שהתשובה היא JSON תקין לחלוטין וללא טקסט נוסף או הסברים מחוץ לבלוק ה-JSON. תאריך: YYYY-MM-DD.`,
+`,
 });
 
 const itineraryAnalysisFlow = ai.defineFlow(
