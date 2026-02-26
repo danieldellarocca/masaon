@@ -182,7 +182,10 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       <div className="grid grid-cols-1 gap-4">
         <Dialog open={showItinerary} onOpenChange={setShowItinerary}>
           <DialogTrigger asChild>
-            <Card className="hover:border-primary cursor-pointer transition-colors shadow-sm">
+            <Card 
+              className="hover:border-primary cursor-pointer transition-colors shadow-sm"
+              onClick={() => setShowItinerary(true)}
+            >
               <CardContent className="pt-6 flex flex-col items-center gap-2">
                 <Calendar className="text-primary w-8 h-8" />
                 <span className="text-base font-bold text-primary">לוח זמנים מפורט</span>

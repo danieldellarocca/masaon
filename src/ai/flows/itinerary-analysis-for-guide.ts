@@ -46,9 +46,6 @@ const ItineraryAnalysisOutputSchema = z.object({
 });
 export type ItineraryAnalysisOutput = z.infer<typeof ItineraryAnalysisOutputSchema>;
 
-// Register schemas with Genkit for better internal handling
-const OutputSchema = ai.defineSchema('ItineraryAnalysisOutput', ItineraryAnalysisOutputSchema);
-
 export async function analyzeItineraryForGuide(
   input: ItineraryAnalysisInput
 ): Promise<ItineraryAnalysisOutput> {
@@ -58,13 +55,10 @@ export async function analyzeItineraryForGuide(
 const prompt = ai.definePrompt({
   name: 'itineraryAnalysisPrompt',
   input: {schema: ItineraryAnalysisInputSchema},
-  output: {schema: OutputSchema},
+  output: {schema: ItineraryAnalysisOutputSchema},
   prompt: `אתה עוזר ניתוח מסמכים מומחה. תפקידך לנתח את מסמך הטיול שסופק ולחלץ את פרטי המסלול.
 
 חלץ כמה שיותר מידע, גם אם הוא חלקי. אם לא מצאת שדה מסוים (כמו תאריך או שעה ספציפית), פשוט השאר אותו ריק או אל תכלול אותו ב-JSON, אך נסה לבנות את מבנה הימים בצורה הטובה ביותר לפי הטקסט.
-
-אנא ספק את המידע בפורמט JSON לפי הסכימה הבאה:
-{{json schema='ItineraryAnalysisOutput'}}
 
 התמקד בזיהוי ימים, מיקומים ואתרים. אם יש שעות - ציין אותן. אם אין - השאר ריק.
 
@@ -77,7 +71,7 @@ const itineraryAnalysisFlow = ai.defineFlow(
   {
     name: 'itineraryAnalysisFlow',
     inputSchema: ItineraryAnalysisInputSchema,
-    outputSchema: OutputSchema,
+    outputSchema: ItineraryAnalysisOutputSchema,
   },
   async input => {
     try {
