@@ -28,9 +28,11 @@ import {
   Loader2,
   Navigation,
   AlertCircle,
-  Info
+  Info,
+  Check
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 interface StudentDashboardProps {
   user: User;
@@ -40,6 +42,7 @@ interface StudentDashboardProps {
 }
 
 export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashboardProps) {
+  const { toast } = useToast();
   const [showRoomReport, setShowRoomReport] = useState(false);
   const [showItinerary, setShowItinerary] = useState(false);
   const [locationName, setLocationName] = useState<string>("מאתר מיקום...");
@@ -145,6 +148,14 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
     });
   };
 
+  const markAsFixed = (reportId: string) => {
+    setTrip(prev => ({
+      ...prev,
+      reports: (prev.reports || []).map(r => r.id === reportId ? { ...r, status: 'fixed' } : r)
+    }));
+    toast({ title: "התקלה סומנה כטופלה", description: "תודה על העדכון!" });
+  };
+
   const currentItineraryLocation = useMemo(() => {
     return trip.itinerary[0]?.location || "ירושלים";
   }, [trip.itinerary]);
@@ -153,14 +164,10 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
     return trip.itinerary[0]?.sites?.[0]?.name || "האתר הבא";
   }, [trip.itinerary]);
 
-  // Filter student's reports to show status
+  // Filter student's reports
   const myReports = useMemo(() => {
     return (trip.reports || []).filter(r => r.studentId === user.id);
   }, [trip.reports, user.id]);
-
-  const hasResolvedReports = useMemo(() => {
-    return myReports.some(r => r.status === 'resolved');
-  }, [myReports]);
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 pb-40 relative min-h-screen">
@@ -174,20 +181,35 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
         </Button>
       </header>
 
-      {/* Resolved Reports Feedback */}
-      {hasResolvedReports && (
-        <div className="space-y-2">
-          {myReports.filter(r => r.status === 'resolved').map(report => (
-            <Alert key={report.id} className="bg-green-50 border-green-200 text-green-800">
-              <Info className="h-4 w-4 text-green-600" />
-              <AlertTitle className="font-bold">עדכון תקלה - חדר {report.roomNumber}</AlertTitle>
-              <AlertDescription className="text-sm">
-                המלון עודכן בתקלה שדיווחת ("{report.description}") והיא בטיפול.
-              </AlertDescription>
-            </Alert>
-          ))}
-        </div>
-      )}
+      {/* Report Status Alerts */}
+      <div className="space-y-2">
+        {myReports.filter(r => r.status === 'reported').map(report => (
+          <Alert key={report.id} className="bg-blue-50 border-blue-200 text-blue-800">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="font-bold">עדכון תקלה - חדר {report.roomNumber}</AlertTitle>
+            <AlertDescription className="text-sm space-y-2">
+              <p>המלון עודכן בתקלה שדיווחת ("{report.description}") והיא בטיפול.</p>
+              <Button 
+                size="sm" 
+                className="w-full bg-blue-600 hover:bg-blue-700 h-8 text-xs"
+                onClick={() => markAsFixed(report.id)}
+              >
+                <Check className="w-3 h-3 ml-1" />
+                סמן כטופל
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ))}
+        {myReports.filter(r => r.status === 'fixed').map(report => (
+          <Alert key={report.id} className="bg-green-50 border-green-200 text-green-800">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertTitle className="font-bold">התקלה טופלה</AlertTitle>
+            <AlertDescription className="text-sm">
+              התקלה בחדר {report.roomNumber} סומנה כטופלה בהצלחה.
+            </AlertDescription>
+          </Alert>
+        ))}
+      </div>
 
       {/* Active Session Alerts */}
       {trip.activeRestStop && (
@@ -348,7 +370,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
           onClick={() => setShowRoomReport(true)}
         >
           <span>דיווח על תקלה בחדר</span>
-          <CheckCircle2 className="w-5 h-5 text-primary" />
+          <AlertCircle className="w-5 h-5 text-primary" />
         </Button>
       </div>
 

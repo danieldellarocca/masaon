@@ -21,7 +21,8 @@ import {
   Check,
   AlertCircle,
   Calendar,
-  Image as ImageIcon
+  Image as ImageIcon,
+  CheckCircle
 } from "lucide-react";
 import { NoticeBoard } from "@/components/features/NoticeBoard";
 import { BoardingCheck } from "@/components/features/BoardingCheck";
@@ -121,10 +122,10 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
     toast({ title: "שם המסע עודכן" });
   };
 
-  const resolveReport = (reportId: string) => {
+  const markAsReportedToHotel = (reportId: string) => {
     setTrip(prev => ({
       ...prev,
-      reports: (prev.reports || []).map(r => r.id === reportId ? { ...r, status: 'resolved' } : r)
+      reports: (prev.reports || []).map(r => r.id === reportId ? { ...r, status: 'reported' } : r)
     }));
     toast({ title: "התקלה דווחה למלון", description: "החניך קיבל עדכון על כך." });
   };
@@ -297,16 +298,20 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
               ) : (
                 <div className="grid gap-4">
                   {trip.reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(report => (
-                    <Card key={report.id} className={report.status === 'resolved' ? 'opacity-60 grayscale' : 'border-destructive/30'}>
+                    <Card key={report.id} className={report.status === 'fixed' ? 'opacity-60 grayscale' : 'border-destructive/30'}>
                       <CardContent className="p-4 space-y-3">
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-lg">חדר {report.roomNumber}</span>
-                              {report.status === 'open' ? (
-                                <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">פתוח</span>
-                              ) : (
-                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">דווח למלון</span>
+                              {report.status === 'open' && (
+                                <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">חדש</span>
+                              )}
+                              {report.status === 'reported' && (
+                                <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">דווח למלון</span>
+                              )}
+                              {report.status === 'fixed' && (
+                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">טופל</span>
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">{report.studentName}</p>
@@ -335,12 +340,19 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
                         
                         {report.status === 'open' && (
                           <Button 
-                            className="w-full h-8 text-xs bg-green-600 hover:bg-green-700" 
-                            onClick={() => resolveReport(report.id)}
+                            className="w-full h-8 text-xs bg-blue-600 hover:bg-blue-700" 
+                            onClick={() => markAsReportedToHotel(report.id)}
                           >
-                            <Check className="w-3 h-3 ml-1" />
-                            דווח למלון / טופל
+                            <Bell className="w-3 h-3 ml-1" />
+                            דווח למלון
                           </Button>
+                        )}
+                        
+                        {report.status === 'reported' && (
+                          <div className="flex items-center justify-center gap-2 text-xs text-blue-600 font-medium bg-blue-50 py-2 rounded">
+                            <CheckCircle className="w-4 h-4" />
+                            התקלה דווחה. ממתין לאישור סופי מהחניך.
+                          </div>
                         )}
                       </CardContent>
                     </Card>

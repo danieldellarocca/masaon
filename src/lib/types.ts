@@ -74,7 +74,7 @@ export interface RoomReport {
   studentName: string;
   roomNumber: string;
   description: string;
-  status: 'open' | 'resolved';
+  status: 'open' | 'reported' | 'fixed';
   timestamp: string;
   photoUrl?: string;
 }
