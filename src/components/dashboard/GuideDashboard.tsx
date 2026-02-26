@@ -130,6 +130,14 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
     toast({ title: "התקלה דווחה למלון", description: "החניך קיבל עדכון על כך." });
   };
 
+  const deleteReport = (reportId: string) => {
+    setTrip(prev => ({
+      ...prev,
+      reports: (prev.reports || []).filter(r => r.id !== reportId)
+    }));
+    toast({ title: "הדיווח נמחק" });
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6 pb-24">
       <header className="flex justify-between items-center bg-card p-4 rounded-xl shadow-sm border">
@@ -292,70 +300,86 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
                 דיווחים על תקלות בחדרים
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               {(!trip.reports || trip.reports.length === 0) ? (
                 <div className="text-center py-8 text-muted-foreground">אין תקלות מדווחות כרגע.</div>
               ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-8">
                   {trip.reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(report => (
-                    <Card key={report.id} className={report.status === 'fixed' ? 'opacity-60 grayscale' : 'border-destructive/30'}>
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-lg">חדר {report.roomNumber}</span>
-                              {report.status === 'open' && (
-                                <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">חדש</span>
-                              )}
-                              {report.status === 'reported' && (
-                                <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">דווח למלון</span>
-                              )}
-                              {report.status === 'fixed' && (
-                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">טופל</span>
-                              )}
+                    <div key={report.id} className="space-y-2">
+                      <div className="flex justify-between items-center bg-muted/30 px-4 py-2 rounded-t-lg border-x border-t">
+                        <span className="text-sm font-bold text-primary flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          {new Date(report.timestamp).toLocaleString('he-IL', { 
+                            dateStyle: 'medium', 
+                            timeStyle: 'short' 
+                          })}
+                        </span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => deleteReport(report.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <Card className={`${report.status === 'fixed' ? 'opacity-60 grayscale' : 'border-destructive/30'} rounded-t-none`}>
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-lg">חדר {report.roomNumber}</span>
+                                {report.status === 'open' && (
+                                  <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">חדש</span>
+                                )}
+                                {report.status === 'reported' && (
+                                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">דווח למלון</span>
+                                )}
+                                {report.status === 'fixed' && (
+                                  <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">טופל</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">{report.studentName}</p>
                             </div>
-                            <p className="text-sm text-muted-foreground">{report.studentName}</p>
                           </div>
-                          <div className="text-left text-[10px] text-muted-foreground">
-                            {new Date(report.timestamp).toLocaleString('he-IL')}
-                          </div>
-                        </div>
-                        
-                        <p className="text-sm bg-muted/30 p-2 rounded">{report.description}</p>
-                        
-                        {report.photoUrl && (
-                          <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted group">
-                            <Image 
-                              src={report.photoUrl} 
-                              alt="Room fault" 
-                              fill 
-                              className="object-cover"
-                              data-ai-hint="Room fault"
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <ImageIcon className="text-white w-8 h-8" />
+                          
+                          <p className="text-sm bg-muted/30 p-2 rounded">{report.description}</p>
+                          
+                          {report.photoUrl && (
+                            <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted group">
+                              <Image 
+                                src={report.photoUrl} 
+                                alt="Room fault" 
+                                fill 
+                                className="object-cover"
+                                data-ai-hint="Room fault"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <ImageIcon className="text-white w-8 h-8" />
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        
-                        {report.status === 'open' && (
-                          <Button 
-                            className="w-full h-8 text-xs bg-blue-600 hover:bg-blue-700" 
-                            onClick={() => markAsReportedToHotel(report.id)}
-                          >
-                            <Bell className="w-3 h-3 ml-1" />
-                            דווח למלון
-                          </Button>
-                        )}
-                        
-                        {report.status === 'reported' && (
-                          <div className="flex items-center justify-center gap-2 text-xs text-blue-600 font-medium bg-blue-50 py-2 rounded">
-                            <CheckCircle className="w-4 h-4" />
-                            התקלה דווחה. ממתין לאישור סופי מהחניך.
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                          )}
+                          
+                          {report.status === 'open' && (
+                            <Button 
+                              className="w-full h-8 text-xs bg-blue-600 hover:bg-blue-700" 
+                              onClick={() => markAsReportedToHotel(report.id)}
+                            >
+                              <Bell className="w-3 h-3 ml-1" />
+                              דווח למלון
+                            </Button>
+                          )}
+                          
+                          {report.status === 'reported' && (
+                            <div className="flex items-center justify-center gap-2 text-xs text-blue-600 font-medium bg-blue-50 py-2 rounded">
+                              <CheckCircle className="w-4 h-4" />
+                              התקלה דווחה. ממתין לאישור סופי מהחניך.
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
                   ))}
                 </div>
               )}

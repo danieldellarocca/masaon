@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -58,13 +59,13 @@ export function SOSButton() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[1000] pointer-events-auto">
+    <div className="fixed bottom-6 right-6 z-[10000] pointer-events-auto">
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button 
             size="lg" 
             disabled={sending}
-            className="rounded-full w-24 h-24 shadow-2xl bg-destructive hover:bg-destructive/90 animate-pulse border-4 border-white flex flex-col items-center justify-center p-0"
+            className="rounded-full w-24 h-24 shadow-2xl bg-destructive hover:bg-destructive/90 animate-pulse border-4 border-white flex flex-col items-center justify-center p-0 transition-all active:scale-95"
           >
             {sending ? (
               <Loader2 className="w-8 h-8 animate-spin" />
@@ -76,7 +77,7 @@ export function SOSButton() {
             )}
           </Button>
         </AlertDialogTrigger>
-        <AlertDialogContent dir="rtl" className="z-[1001]">
+        <AlertDialogContent dir="rtl" className="z-[10001]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive text-right text-2xl">קריאת SOS דחופה</AlertDialogTitle>
             <AlertDialogDescription className="text-right text-foreground text-lg">
