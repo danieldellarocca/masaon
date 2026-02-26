@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -50,6 +51,7 @@ export default function Home() {
   const [trip, setTrip] = useState<Trip>(MOCK_INITIAL_TRIP);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Load state from localStorage on mount
   useEffect(() => {
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
@@ -64,6 +66,7 @@ export default function Home() {
     if (savedTrip) {
       try {
         const parsedTrip = JSON.parse(savedTrip);
+        // Merge with initial to ensure all fields exist
         setTrip({ 
           ...MOCK_INITIAL_TRIP, 
           ...parsedTrip,
@@ -80,10 +83,12 @@ export default function Home() {
     setIsLoaded(true);
   }, []);
 
+  // Save trip changes to localStorage
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem("masaon_trip", JSON.stringify(trip));
       
+      // Sync across tabs if open
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === "masaon_trip" && e.newValue) {
           try {
@@ -106,6 +111,7 @@ export default function Home() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem("masaon_user");
+    // We keep the trip in localStorage so if someone else logs in they might join it
   };
 
   if (!isLoaded) return null;

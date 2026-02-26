@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Trip } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -23,7 +24,8 @@ import {
   PhoneCall,
   Coffee,
   Calendar,
-  Clock
+  Clock,
+  Loader2
 } from "lucide-react";
 
 interface StudentDashboardProps {
@@ -36,6 +38,29 @@ interface StudentDashboardProps {
 export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashboardProps) {
   const [showRoomReport, setShowRoomReport] = useState(false);
   const [showItinerary, setShowItinerary] = useState(false);
+  const [locationName, setLocationName] = useState<string>("מאתר מיקום...");
+  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
+
+  // Get GPS Location
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      const watcher = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setCoords({ lat: latitude, lng: longitude });
+          // In a real app we would reverse geocode this. 
+          // For the prototype we'll show coordinates or "Near Current Site"
+          setLocationName(`${latitude.toFixed(3)}, ${longitude.toFixed(3)}`);
+        },
+        (error) => {
+          console.error("GPS Error", error);
+          setLocationName(trip.itinerary[0]?.location || "מיקום לא ידוע");
+        },
+        { enableHighAccuracy: true }
+      );
+      return () => navigator.geolocation.clearWatch(watcher);
+    }
+  }, [trip.itinerary]);
 
   const confirmPresence = (type: 'rest' | 'bus') => {
     setTrip(prev => {
@@ -62,8 +87,6 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       return prev;
     });
   };
-
-  const currentDay = trip.itinerary && trip.itinerary.length > 0 ? trip.itinerary[0] : null;
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 pb-40 relative min-h-screen">
@@ -132,11 +155,12 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
         <CardContent className="pt-6">
           <div className="flex items-center gap-4 mb-4">
             <div className="bg-white/20 p-3 rounded-full">
-              <MapPin className="w-6 h-6" />
+              {coords ? <MapPin className="w-6 h-6 animate-bounce" /> : <Loader2 className="w-6 h-6 animate-spin" />}
             </div>
             <div>
-              <p className="text-sm opacity-80">מיקום נוכחי</p>
-              <h2 className="text-xl font-bold">{currentDay?.location || "בדרך..."}</h2>
+              <p className="text-sm opacity-80">מיקום נוכחי (GPS)</p>
+              <h2 className="text-xl font-bold">{locationName}</h2>
+              {coords && <p className="text-[10px] opacity-60">דיוק מירבי פעיל</p>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-4 text-center">
@@ -176,7 +200,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       </Card>
 
       {/* AI Features */}
-      <ClothingAdvisor location={currentDay?.location || "ירושלים"} />
+      <ClothingAdvisor location={trip.itinerary[0]?.location || "ירושלים"} />
 
       {/* Main Grid Actions */}
       <div className="grid grid-cols-1 gap-4">
