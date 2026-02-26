@@ -24,6 +24,13 @@ export interface Trip {
   wakeUpTime?: string;
   lightsOutTime?: string;
   clothingGuide?: string;
+  activeRestStop?: {
+    endTime: string; // ISO string
+    confirmedStudentIds: string[];
+  };
+  activeBoarding?: {
+    confirmedStudentIds: string[];
+  };
 }
 
 export interface Notice {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Role, Trip } from "@/lib/types";
+import { User, Trip } from "@/lib/types";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { GuideDashboard } from "@/components/dashboard/GuideDashboard";
 import { StudentDashboard } from "@/components/dashboard/StudentDashboard";
@@ -29,13 +29,34 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Simulate loading local storage
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
+    
+    const savedTrip = localStorage.getItem("masaon_trip");
+    if (savedTrip) {
+      setTrip(JSON.parse(savedTrip));
+    }
+    
     setIsLoaded(true);
   }, []);
+
+  // Sync trip to local storage to simulate "real-time" behavior between roles in one browser
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("masaon_trip", JSON.stringify(trip));
+      
+      // Listen for storage changes to sync across tabs (simulating backend)
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === "masaon_trip" && e.newValue) {
+          setTrip(JSON.parse(e.newValue));
+        }
+      };
+      window.addEventListener("storage", handleStorageChange);
+      return () => window.removeEventListener("storage", handleStorageChange);
+    }
+  }, [trip, isLoaded]);
 
   const handleLogin = (userData: User) => {
     setUser(userData);

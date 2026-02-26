@@ -1,24 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { User, Trip, Notice, BoardingStatus } from "@/lib/types";
+import { User, Trip, Notice } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
-  ClipboardList, 
-  Megaphone, 
-  Truck, 
   Clock, 
   Shirt, 
-  FileText,
   LogOut,
-  Bell
+  Bell,
+  Coffee,
+  Bus,
+  Users
 } from "lucide-react";
 import { NoticeBoard } from "@/components/features/NoticeBoard";
 import { BoardingCheck } from "@/components/features/BoardingCheck";
 import { ItineraryManager } from "@/components/features/ItineraryManager";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface GuideDashboardProps {
   user: User;
@@ -29,6 +31,7 @@ interface GuideDashboardProps {
 
 export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboardProps) {
   const { toast } = useToast();
+  const [stopMinutes, setStopMinutes] = useState("15");
 
   const addNotice = (content: string) => {
     const newNotice: Notice = {
@@ -38,6 +41,45 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
     };
     setTrip(prev => ({ ...prev, notices: [newNotice, ...prev.notices] }));
     toast({ title: "הודעה פורסמה", description: "כל החניכים קיבלו עדכון." });
+  };
+
+  const startRestStop = () => {
+    const endTime = new Date();
+    endTime.setMinutes(endTime.getMinutes() + parseInt(stopMinutes));
+    setTrip(prev => ({
+      ...prev,
+      activeRestStop: {
+        endTime: endTime.toISOString(),
+        confirmedStudentIds: []
+      }
+    }));
+    addNotice(`עצירת רענון ל-${stopMinutes} דקות. נא לסמן נוכחות באפליקציה!`);
+  };
+
+  const endRestStop = () => {
+    setTrip(prev => {
+      const { activeRestStop, ...rest } = prev;
+      return rest;
+    });
+    toast({ title: "העצירה הסתיימה" });
+  };
+
+  const startBoarding = () => {
+    setTrip(prev => ({
+      ...prev,
+      activeBoarding: {
+        confirmedStudentIds: []
+      }
+    }));
+    addNotice("עלייה לאוטובוס החלה! כולם לעלות ולסמן נוכחות.");
+  };
+
+  const endBoarding = () => {
+    setTrip(prev => {
+      const { activeBoarding, ...rest } = prev;
+      return rest;
+    });
+    toast({ title: "העלייה לאוטובוס הסתיימה" });
   };
 
   const updateTimes = (type: 'wake' | 'light', time: string) => {
@@ -72,6 +114,59 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Active Actions */}
+            <Card className="md:col-span-2 border-primary/50 bg-primary/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  ניהול אירועים בזמן אמת
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-3 p-3 border rounded-lg bg-card">
+                  <div className="flex items-center gap-2 font-bold mb-2">
+                    <Coffee className="w-4 h-4" />
+                    עצירת שירותים / רענון
+                  </div>
+                  {trip.activeRestStop ? (
+                    <div className="space-y-2">
+                      <div className="text-sm text-green-600 font-medium">עצירה פעילה!</div>
+                      <Button variant="destructive" size="sm" className="w-full" onClick={endRestStop}>
+                        סיים עצירה
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input 
+                        type="number" 
+                        value={stopMinutes} 
+                        onChange={(e) => setStopMinutes(e.target.value)} 
+                        className="w-20"
+                      />
+                      <Button size="sm" className="flex-1" onClick={startRestStop}>התחל עצירה</Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3 p-3 border rounded-lg bg-card">
+                  <div className="flex items-center gap-2 font-bold mb-2">
+                    <Bus className="w-4 h-4" />
+                    עלייה לאוטובוס
+                  </div>
+                  {trip.activeBoarding ? (
+                    <div className="space-y-2">
+                      <div className="text-sm text-blue-600 font-medium">עלייה פעילה!</div>
+                      <Button variant="destructive" size="sm" className="w-full" onClick={endBoarding}>
+                        סיים עלייה
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" className="w-full" onClick={startBoarding}>התחל עלייה לאוטובוס</Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -137,11 +232,12 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
         </TabsContent>
 
         <TabsContent value="logistics">
-          <BoardingCheck />
+          <BoardingCheck trip={trip} setTrip={setTrip} />
         </TabsContent>
 
         <TabsContent value="notices">
            <div className="space-y-4">
+             {trip.notices.length === 0 && <p className="text-center text-muted-foreground py-8">אין הודעות חדשות</p>}
              {trip.notices.map(notice => (
                <Card key={notice.id} className="relative overflow-hidden">
                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />

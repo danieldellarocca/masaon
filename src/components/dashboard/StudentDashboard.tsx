@@ -7,14 +7,15 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { SOSButton } from "@/components/features/SOSButton";
 import { RoomReportForm } from "@/components/features/RoomReportForm";
 import { ClothingAdvisor } from "@/components/features/ClothingAdvisor";
+import { CountdownTimer } from "@/components/features/CountdownTimer";
 import { 
   MapPin, 
-  Clock, 
   Megaphone, 
   Calendar, 
   BookOpen, 
   LogOut,
-  CloudSun
+  Bus,
+  CheckCircle2
 } from "lucide-react";
 
 interface StudentDashboardProps {
@@ -24,10 +25,36 @@ interface StudentDashboardProps {
   onLogout: () => void;
 }
 
-export function StudentDashboard({ user, trip, onLogout }: StudentDashboardProps) {
+export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashboardProps) {
   const [showRoomReport, setShowRoomReport] = useState(false);
 
-  const currentDay = trip.itinerary[0]; // Simplified for demo
+  const confirmPresence = (type: 'rest' | 'bus') => {
+    setTrip(prev => {
+      if (type === 'rest' && prev.activeRestStop) {
+        if (prev.activeRestStop.confirmedStudentIds.includes(user.id)) return prev;
+        return {
+          ...prev,
+          activeRestStop: {
+            ...prev.activeRestStop,
+            confirmedStudentIds: [...prev.activeRestStop.confirmedStudentIds, user.id]
+          }
+        };
+      }
+      if (type === 'bus' && prev.activeBoarding) {
+        if (prev.activeBoarding.confirmedStudentIds.includes(user.id)) return prev;
+        return {
+          ...prev,
+          activeBoarding: {
+            ...prev.activeBoarding,
+            confirmedStudentIds: [...prev.activeBoarding.confirmedStudentIds, user.id]
+          }
+        };
+      }
+      return prev;
+    });
+  };
+
+  const currentDay = trip.itinerary[0];
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 pb-32">
@@ -40,6 +67,56 @@ export function StudentDashboard({ user, trip, onLogout }: StudentDashboardProps
           <LogOut className="w-5 h-5" />
         </Button>
       </header>
+
+      {/* Active Session Alerts */}
+      {trip.activeRestStop && (
+        <Card className="border-green-500 bg-green-50 animate-in slide-in-from-top duration-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-md flex items-center justify-between text-green-700">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5" />
+                עצירת רענון
+              </div>
+              <CountdownTimer targetTime={trip.activeRestStop.endTime} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {trip.activeRestStop.confirmedStudentIds.includes(user.id) ? (
+              <div className="flex items-center justify-center gap-2 text-green-600 font-bold py-2">
+                <CheckCircle2 className="w-5 h-5" />
+                סימנת שחזרת!
+              </div>
+            ) : (
+              <Button onClick={() => confirmPresence('rest')} className="w-full bg-green-600 hover:bg-green-700">
+                אני כאן / חזרתי לעצירה
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {trip.activeBoarding && (
+        <Card className="border-blue-500 bg-blue-50 animate-in slide-in-from-top duration-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-md flex items-center gap-2 text-blue-700">
+              <Bus className="w-5 h-5" />
+              עלייה לאוטובוס
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {trip.activeBoarding.confirmedStudentIds.includes(user.id) ? (
+              <div className="flex items-center justify-center gap-2 text-blue-600 font-bold py-2">
+                <CheckCircle2 className="w-5 h-5" />
+                אתה על האוטובוס!
+              </div>
+            ) : (
+              <Button onClick={() => confirmPresence('bus')} className="w-full bg-blue-600 hover:bg-blue-700">
+                עליתי לאוטובוס
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Hero: Current Status */}
       <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-none shadow-lg">
@@ -112,7 +189,6 @@ export function StudentDashboard({ user, trip, onLogout }: StudentDashboardProps
         </Button>
       </div>
 
-      {/* Footer / Permanent UI */}
       <SOSButton />
 
       {showRoomReport && (
