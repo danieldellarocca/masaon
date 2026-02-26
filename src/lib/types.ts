@@ -10,6 +10,8 @@ export interface User {
 export interface SiteVisit {
   name: string;
   time: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface ItineraryDay {
@@ -18,6 +20,8 @@ export interface ItineraryDay {
   location: string;
   activities: string;
   sites?: SiteVisit[];
+  lat?: number;
+  lng?: number;
 }
 
 export interface EmergencyContact {
@@ -68,4 +72,3 @@ export interface RoomReport {
   timestamp: string;
   photoUrl?: string;
 }
-

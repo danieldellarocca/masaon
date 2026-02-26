@@ -1,8 +1,7 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
-import { User, Trip } from "@/lib/types";
+import { useState, useEffect, useMemo } from "react";
+import { User, Trip, SiteVisit } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { SOSButton } from "@/components/features/SOSButton";
@@ -25,7 +24,8 @@ import {
   Coffee,
   Calendar,
   Clock,
-  Loader2
+  Loader2,
+  Navigation
 } from "lucide-react";
 
 interface StudentDashboardProps {
@@ -40,21 +40,69 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
   const [showItinerary, setShowItinerary] = useState(false);
   const [locationName, setLocationName] = useState<string>("מאתר מיקום...");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [distanceToNext, setDistanceToNext] = useState<string | null>(null);
 
-  // Simulation of reverse geocoding for the prototype
+  // Helper: Haversine distance
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Distance in km
+  };
+
+  // Identify next site and calculate distance
   useEffect(() => {
-    if (coords) {
-      // Find current day based on date or just use the first day for the demo
-      const currentDay = trip.itinerary[0];
-      const currentSite = currentDay?.sites?.[0]?.name || currentDay?.location;
+    if (!coords || !trip.itinerary) return;
+
+    // For simulation, we assume some coordinates for itinerary sites if they don't have them
+    // Realistically, these would come from the guide's input or a DB.
+    const currentDay = trip.itinerary[0]; // Assuming day 1 for prototype
+    const nextSite = currentDay?.sites?.find(s => {
+      // Logic to find "next" based on time would go here
+      // For now, we take the first site that hasn't passed
+      return s.name; 
+    });
+
+    if (nextSite) {
+      // Mocking site coordinates for Jerusalem (approx) if not present
+      const siteLat = nextSite.lat || 31.7683;
+      const siteLng = nextSite.lng || 35.2137;
       
-      if (currentSite) {
-        setLocationName(`בקרבת ${currentSite}`);
+      const dist = calculateDistance(coords.lat, coords.lng, siteLat, siteLng);
+      if (dist < 1) {
+        setDistanceToNext(`${(dist * 1000).toFixed(0)} מטר`);
       } else {
-        setLocationName("בדרך לאתר הבא");
+        setDistanceToNext(`${dist.toFixed(1)} ק"מ`);
       }
     }
   }, [coords, trip.itinerary]);
+
+  // Reverse geocoding (Real Named Location)
+  useEffect(() => {
+    if (!coords) return;
+
+    const fetchPlaceName = async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}&zoom=18&addressdetails=1`,
+          { headers: { 'Accept-Language': 'he' } }
+        );
+        const data = await response.json();
+        const name = data.display_name.split(',')[0] || data.address?.city || data.address?.town || "מיקום לא ידוע";
+        setLocationName(name);
+      } catch (e) {
+        console.error("Reverse geocoding failed", e);
+        setLocationName("בקרבת המיקום שלך");
+      }
+    };
+
+    fetchPlaceName();
+  }, [coords]);
 
   // Get GPS Location
   useEffect(() => {
@@ -66,13 +114,12 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
         },
         (error) => {
           console.error("GPS Error", error);
-          setLocationName(trip.itinerary[0]?.location || "מיקום לא ידוע");
         },
         { enableHighAccuracy: true }
       );
       return () => navigator.geolocation.clearWatch(watcher);
     }
-  }, [trip.itinerary]);
+  }, []);
 
   const confirmPresence = (type: 'rest' | 'bus') => {
     setTrip(prev => {
@@ -99,6 +146,14 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       return prev;
     });
   };
+
+  const currentItineraryLocation = useMemo(() => {
+    return trip.itinerary[0]?.location || "ירושלים";
+  }, [trip.itinerary]);
+
+  const nextSiteName = useMemo(() => {
+    return trip.itinerary[0]?.sites?.[0]?.name || "האתר הבא";
+  }, [trip.itinerary]);
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 pb-40 relative min-h-screen">
@@ -169,10 +224,15 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
             <div className="bg-white/20 p-3 rounded-full">
               {coords ? <MapPin className="w-6 h-6 animate-bounce" /> : <Loader2 className="w-6 h-6 animate-spin" />}
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-sm opacity-80">מיקום נוכחי מאומת</p>
-              <h2 className="text-xl font-bold">{locationName}</h2>
-              {coords && <p className="text-[10px] opacity-60">GPS פעיל - דיוק גבוה</p>}
+              <h2 className="text-xl font-bold truncate max-w-[200px]">{locationName}</h2>
+              {distanceToNext && (
+                <div className="flex items-center gap-1 mt-1 text-xs opacity-90">
+                  <Navigation className="w-3 h-3 rotate-45" />
+                  <span>מרחק ל{nextSiteName}: {distanceToNext}</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-4 text-center">
@@ -212,7 +272,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       </Card>
 
       {/* AI Features */}
-      <ClothingAdvisor location={trip.itinerary[0]?.location || "ירושלים"} />
+      <ClothingAdvisor location={currentItineraryLocation} />
 
       {/* Main Grid Actions */}
       <div className="grid grid-cols-1 gap-4">
@@ -220,7 +280,6 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
           <DialogTrigger asChild>
             <Card 
               className="hover:border-primary cursor-pointer transition-colors shadow-sm"
-              onClick={() => setShowItinerary(true)}
             >
               <CardContent className="pt-6 flex flex-col items-center gap-2">
                 <Calendar className="text-primary w-8 h-8" />
