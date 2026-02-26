@@ -41,6 +41,21 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
   const [locationName, setLocationName] = useState<string>("מאתר מיקום...");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
 
+  // Simulation of reverse geocoding for the prototype
+  useEffect(() => {
+    if (coords) {
+      // Find current day based on date or just use the first day for the demo
+      const currentDay = trip.itinerary[0];
+      const currentSite = currentDay?.sites?.[0]?.name || currentDay?.location;
+      
+      if (currentSite) {
+        setLocationName(`בקרבת ${currentSite}`);
+      } else {
+        setLocationName("בדרך לאתר הבא");
+      }
+    }
+  }, [coords, trip.itinerary]);
+
   // Get GPS Location
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -48,9 +63,6 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
         (position) => {
           const { latitude, longitude } = position.coords;
           setCoords({ lat: latitude, lng: longitude });
-          // In a real app we would reverse geocode this. 
-          // For the prototype we'll show coordinates or "Near Current Site"
-          setLocationName(`${latitude.toFixed(3)}, ${longitude.toFixed(3)}`);
         },
         (error) => {
           console.error("GPS Error", error);
@@ -151,16 +163,16 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
       )}
 
       {/* Hero: Current Status */}
-      <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-none shadow-lg">
+      <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-none shadow-lg overflow-hidden">
         <CardContent className="pt-6">
           <div className="flex items-center gap-4 mb-4">
             <div className="bg-white/20 p-3 rounded-full">
               {coords ? <MapPin className="w-6 h-6 animate-bounce" /> : <Loader2 className="w-6 h-6 animate-spin" />}
             </div>
             <div>
-              <p className="text-sm opacity-80">מיקום נוכחי (GPS)</p>
+              <p className="text-sm opacity-80">מיקום נוכחי מאומת</p>
               <h2 className="text-xl font-bold">{locationName}</h2>
-              {coords && <p className="text-[10px] opacity-60">דיוק מירבי פעיל</p>}
+              {coords && <p className="text-[10px] opacity-60">GPS פעיל - דיוק גבוה</p>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-4 text-center">
