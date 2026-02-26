@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -41,6 +40,7 @@ const MOCK_INITIAL_TRIP: Trip = {
     { name: "מוקד חירום ארצי", phone: "100" },
     { name: "מד\"א", phone: "101" }
   ],
+  students: [],
   reports: [],
   wakeUpTime: "06:30",
   lightsOutTime: "23:00"
@@ -73,6 +73,7 @@ export default function Home() {
           emergencyContacts: parsedTrip.emergencyContacts || MOCK_INITIAL_TRIP.emergencyContacts,
           itinerary: parsedTrip.itinerary || MOCK_INITIAL_TRIP.itinerary,
           notices: parsedTrip.notices || MOCK_INITIAL_TRIP.notices,
+          students: parsedTrip.students || [],
           reports: parsedTrip.reports || []
         });
       } catch (e) {
@@ -106,12 +107,23 @@ export default function Home() {
   const handleLogin = (userData: User) => {
     setUser(userData);
     localStorage.setItem("masaon_user", JSON.stringify(userData));
+    
+    // If student, register them in the trip's student list
+    if (userData.role === 'student') {
+      setTrip(prev => {
+        const studentExists = prev.students?.some(s => s.id === userData.id);
+        if (studentExists) return prev;
+        return {
+          ...prev,
+          students: [...(prev.students || []), { id: userData.id, name: userData.name }]
+        };
+      });
+    }
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem("masaon_user");
-    // We keep the trip in localStorage so if someone else logs in they might join it
   };
 
   if (!isLoaded) return null;

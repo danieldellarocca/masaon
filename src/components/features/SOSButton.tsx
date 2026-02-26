@@ -27,7 +27,6 @@ export function SOSButton() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          console.log(`SOS Location: ${latitude}, ${longitude}`);
           
           // Simulate sending to guide
           setTimeout(() => {
@@ -59,7 +58,7 @@ export function SOSButton() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[999] pointer-events-auto">
+    <div className="fixed bottom-6 right-6 z-[1000] pointer-events-auto">
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button 
@@ -77,7 +76,7 @@ export function SOSButton() {
             )}
           </Button>
         </AlertDialogTrigger>
-        <AlertDialogContent dir="rtl" className="z-[1000]">
+        <AlertDialogContent dir="rtl" className="z-[1001]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive text-right text-2xl">קריאת SOS דחופה</AlertDialogTitle>
             <AlertDialogDescription className="text-right text-foreground text-lg">

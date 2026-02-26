@@ -29,6 +29,11 @@ export interface EmergencyContact {
   phone: string;
 }
 
+export interface TripStudent {
+  id: string;
+  name: string;
+}
+
 export interface Trip {
   id: string;
   name: string;
@@ -37,6 +42,7 @@ export interface Trip {
   notices: Notice[];
   logistics: BoardingStatus[];
   emergencyContacts: EmergencyContact[];
+  students: TripStudent[];
   reports?: RoomReport[];
   wakeUpTime?: string;
   lightsOutTime?: string;

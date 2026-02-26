@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { User, Trip, SiteVisit } from "@/lib/types";
+import { User, Trip } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { SOSButton } from "@/components/features/SOSButton";
@@ -59,14 +59,8 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
   useEffect(() => {
     if (!coords || !trip.itinerary) return;
 
-    // For simulation, we assume some coordinates for itinerary sites if they don't have them
-    // Realistically, these would come from the guide's input or a DB.
     const currentDay = trip.itinerary[0]; // Assuming day 1 for prototype
-    const nextSite = currentDay?.sites?.find(s => {
-      // Logic to find "next" based on time would go here
-      // For now, we take the first site that hasn't passed
-      return s.name; 
-    });
+    const nextSite = currentDay?.sites?.find(s => s.name);
 
     if (nextSite) {
       // Mocking site coordinates for Jerusalem (approx) if not present
@@ -280,6 +274,7 @@ export function StudentDashboard({ user, trip, setTrip, onLogout }: StudentDashb
           <DialogTrigger asChild>
             <Card 
               className="hover:border-primary cursor-pointer transition-colors shadow-sm"
+              onClick={() => setShowItinerary(true)}
             >
               <CardContent className="pt-6 flex flex-col items-center gap-2">
                 <Calendar className="text-primary w-8 h-8" />
