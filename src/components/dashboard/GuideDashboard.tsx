@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useState } from "react";
-import { User, Trip, Notice } from "@/lib/types";
+import { User, Trip, Notice, TripStudent } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -22,7 +21,9 @@ import {
   AlertCircle,
   Calendar,
   Image as ImageIcon,
-  CheckCircle
+  CheckCircle,
+  Users,
+  UserCheck
 } from "lucide-react";
 import { NoticeBoard } from "@/components/features/NoticeBoard";
 import { BoardingCheck } from "@/components/features/BoardingCheck";
@@ -43,6 +44,8 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
   const [newContact, setNewContact] = useState({ name: "", phone: "" });
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempTripName, setTempTripName] = useState(trip.name);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [editingStudentName, setEditingStudentName] = useState("");
 
   const addNotice = (content: string) => {
     const newNotice: Notice = {
@@ -138,8 +141,31 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
     toast({ title: "הדיווח נמחק" });
   };
 
+  const removeStudent = (studentId: string) => {
+    setTrip(prev => ({
+      ...prev,
+      students: (prev.students || []).filter(s => s.id !== studentId)
+    }));
+    toast({ title: "החניך הוסר מהמסע" });
+  };
+
+  const startEditStudent = (student: TripStudent) => {
+    setEditingStudentId(student.id);
+    setEditingStudentName(student.name);
+  };
+
+  const saveStudentName = () => {
+    if (!editingStudentId) return;
+    setTrip(prev => ({
+      ...prev,
+      students: (prev.students || []).map(s => s.id === editingStudentId ? { ...s, name: editingStudentName } : s)
+    }));
+    setEditingStudentId(null);
+    toast({ title: "שם החניך עודכן" });
+  };
+
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6 pb-24">
+    <div className="max-w-4xl mx-auto p-4 space-y-6 pb-24" dir="rtl">
       <header className="flex justify-between items-center bg-card p-4 rounded-xl shadow-sm border">
         <div className="flex-1">
           {isEditingName ? (
@@ -172,10 +198,11 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
       </header>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid grid-cols-5 mb-6">
+        <TabsList className="grid grid-cols-6 mb-6">
           <TabsTrigger value="overview">כללי</TabsTrigger>
           <TabsTrigger value="itinerary">מסלול</TabsTrigger>
-          <TabsTrigger value="logistics">לוגיסטיקה</TabsTrigger>
+          <TabsTrigger value="students">חניכים</TabsTrigger>
+          <TabsTrigger value="logistics">נוכחות</TabsTrigger>
           <TabsTrigger value="reports" className="relative">
             תקלות
             {trip.reports?.filter(r => r.status === 'open').length ? (
@@ -288,6 +315,58 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
           <ItineraryManager itinerary={trip.itinerary || []} setItinerary={(newIt) => setTrip(prev => ({...prev, itinerary: newIt}))} />
         </TabsContent>
 
+        <TabsContent value="students">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                חניכים רשומים ({trip.students?.length || 0})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(!trip.students || trip.students.length === 0) ? (
+                <div className="text-center py-8 text-muted-foreground">טרם נרשמו חניכים למסע.</div>
+              ) : (
+                <div className="space-y-3">
+                  {trip.students.map(student => (
+                    <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                      {editingStudentId === student.id ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input 
+                            value={editingStudentName} 
+                            onChange={(e) => setEditingStudentName(e.target.value)}
+                            className="h-8"
+                          />
+                          <Button size="icon" variant="ghost" onClick={saveStudentName}>
+                            <Check className="w-4 h-4 text-green-600" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                            {student.name.charAt(0)}
+                          </div>
+                          <span className="font-medium">{student.name}</span>
+                        </div>
+                      )}
+                      <div className="flex gap-1">
+                        {editingStudentId !== student.id && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEditStudent(student)}>
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => removeStudent(student.id)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="logistics">
           <BoardingCheck trip={trip} setTrip={setTrip} />
         </TabsContent>
@@ -307,9 +386,9 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
                 <div className="grid gap-8">
                   {trip.reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(report => (
                     <div key={report.id} className="space-y-2">
-                      <div className="flex justify-between items-center bg-muted/30 px-4 py-2 rounded-t-lg border-x border-t">
-                        <span className="text-sm font-bold text-primary flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
+                      <div className="flex justify-between items-center bg-muted/50 px-4 py-3 rounded-t-lg border-x border-t">
+                        <span className="text-base font-bold text-primary flex items-center gap-2">
+                          <Calendar className="w-5 h-5" />
                           {new Date(report.timestamp).toLocaleString('he-IL', { 
                             dateStyle: 'medium', 
                             timeStyle: 'short' 
@@ -324,7 +403,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                      <Card className={`${report.status === 'fixed' ? 'opacity-60 grayscale' : 'border-destructive/30'} rounded-t-none`}>
+                      <Card className={`${report.status === 'fixed' ? 'opacity-60 grayscale' : 'border-destructive/30'} rounded-t-none border-t-0 shadow-none`}>
                         <CardContent className="p-4 space-y-3">
                           <div className="flex justify-between items-start">
                             <div>

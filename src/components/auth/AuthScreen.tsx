@@ -9,7 +9,7 @@ import { UserCircle, GraduationCap, MapPin } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 interface AuthScreenProps {
-  onLogin: (user: User) => void;
+  onLogin: (user: User, customJoinCode?: string) => void;
 }
 
 export function AuthScreen({ onLogin }: AuthScreenProps) {
@@ -17,16 +17,23 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
 
+  const generateJoinCode = () => {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  };
+
   const handleJoin = () => {
     if (!name || !role) return;
     if (role === "student" && !code) return;
 
+    const userId = Math.random().toString(36).substr(2, 9);
+    const newJoinCode = role === "guide" ? generateJoinCode() : undefined;
+
     onLogin({
-      id: Math.random().toString(36).substr(2, 9),
+      id: userId,
       name,
       role,
       tripId: role === "student" ? "trip-1" : undefined
-    });
+    }, newJoinCode);
   };
 
   return (

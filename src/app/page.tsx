@@ -8,33 +8,18 @@ import { StudentDashboard } from "@/components/dashboard/StudentDashboard";
 
 const MOCK_INITIAL_TRIP: Trip = {
   id: "trip-1",
-  name: "מסע ישראלי 2024",
-  joinCode: "ISRAEL24",
+  name: "מסע חדש",
+  joinCode: "WELCOME",
   itinerary: [
     { 
       dayNumber: 1, 
-      date: "2024-05-01", 
-      location: "ירושלים", 
-      activities: "סיור בעיר העתיקה, כותל המערבי",
-      sites: [
-        { name: "שער יפו", time: "09:00 - 10:30" },
-        { name: "הכותל המערבי", time: "11:00 - 13:00" }
-      ]
-    },
-    { 
-      dayNumber: 2, 
-      date: "2024-05-02", 
-      location: "מדבר יהודה", 
-      activities: "טיול במצדה, רחצה בים המלח",
-      sites: [
-        { name: "מצדה", time: "08:00 - 11:30" },
-        { name: "עין גדי", time: "12:00 - 14:00" }
-      ]
+      date: new Date().toISOString().split('T')[0], 
+      location: "נקודת התחלה", 
+      activities: "התחלת המסע",
+      sites: []
     }
   ],
-  notices: [
-    { id: "1", content: "מחר יוצאים ב-07:00 בדיוק!", timestamp: new Date().toISOString() }
-  ],
+  notices: [],
   logistics: [],
   emergencyContacts: [
     { name: "מוקד חירום ארצי", phone: "100" },
@@ -42,7 +27,7 @@ const MOCK_INITIAL_TRIP: Trip = {
   ],
   students: [],
   reports: [],
-  wakeUpTime: "06:30",
+  wakeUpTime: "07:00",
   lightsOutTime: "23:00"
 };
 
@@ -51,7 +36,6 @@ export default function Home() {
   const [trip, setTrip] = useState<Trip>(MOCK_INITIAL_TRIP);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load state from localStorage on mount
   useEffect(() => {
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
@@ -66,7 +50,6 @@ export default function Home() {
     if (savedTrip) {
       try {
         const parsedTrip = JSON.parse(savedTrip);
-        // Merge with initial to ensure all fields exist
         setTrip({ 
           ...MOCK_INITIAL_TRIP, 
           ...parsedTrip,
@@ -84,12 +67,10 @@ export default function Home() {
     setIsLoaded(true);
   }, []);
 
-  // Save trip changes to localStorage
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem("masaon_trip", JSON.stringify(trip));
       
-      // Sync across tabs if open
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === "masaon_trip" && e.newValue) {
           try {
@@ -104,11 +85,18 @@ export default function Home() {
     }
   }, [trip, isLoaded]);
 
-  const handleLogin = (userData: User) => {
+  const handleLogin = (userData: User, customJoinCode?: string) => {
     setUser(userData);
     localStorage.setItem("masaon_user", JSON.stringify(userData));
     
-    // If student, register them in the trip's student list
+    if (userData.role === 'guide' && customJoinCode) {
+      setTrip(prev => ({
+        ...prev,
+        joinCode: customJoinCode,
+        students: [] // Reset students for a brand new trip
+      }));
+    }
+
     if (userData.role === 'student') {
       setTrip(prev => {
         const studentExists = prev.students?.some(s => s.id === userData.id);
