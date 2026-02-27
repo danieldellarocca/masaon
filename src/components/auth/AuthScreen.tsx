@@ -38,6 +38,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     if (role === "student" && !code) return;
 
     setIsLoading(true);
+    console.log("Starting authentication process for:", name);
     try {
       const userId = Math.random().toString(36).substr(2, 9);
       const newJoinCode = role === "guide" ? generateJoinCode() : undefined;
@@ -48,6 +49,10 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
         role,
         tripId: role === "student" ? code : undefined
       }, newJoinCode);
+      
+    } catch (error) {
+      console.error("AuthScreen error:", error);
+      // Loading is set to false in finally block
     } finally {
       setIsLoading(false);
     }
