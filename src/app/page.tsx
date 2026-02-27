@@ -41,7 +41,6 @@ export default function Home() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   
-  // טיימר להצגת שגיאה כדי למנוע הודעה שגויה בזמן סנכרון ראשוני
   const notFoundTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -63,12 +62,17 @@ export default function Home() {
       return;
     }
 
+    console.log("Subscribing to trip:", user.tripId);
     const tripRef = doc(db, "trips", user.tripId);
     
+    // ננקה טיימרים קודמים אם קיימים
+    if (notFoundTimeoutRef.current) {
+      clearTimeout(notFoundTimeoutRef.current);
+    }
+
     const unsub = onSnapshot(tripRef, 
       (docSnap) => {
         if (docSnap.exists()) {
-          // אם מצאנו את המסמך, ננקה טיימרים ושגיאות
           if (notFoundTimeoutRef.current) {
             clearTimeout(notFoundTimeoutRef.current);
             notFoundTimeoutRef.current = null;
@@ -76,19 +80,17 @@ export default function Home() {
           setTrip({ ...docSnap.data(), id: docSnap.id } as Trip);
           setSyncError(null);
         } else {
-          // אם המסמך לא נמצא, נחכה רגע לפני שנציג שגיאה (אולי הוא בתהליך יצירה)
+          // נותנים לזה 10 שניות לפני שמתייאשים - חשוב במיוחד בחיבורים איטיים
           if (!notFoundTimeoutRef.current) {
             notFoundTimeoutRef.current = setTimeout(() => {
-              setSyncError("לא מצאנו את נתוני המסע בשרת. וודא שהקוד שקיבלת נכון.");
-            }, 3000); // מחכים 3 שניות של "חוסר" לפני שמתייאשים
+              setSyncError("לא מצאנו את נתוני המסע בשרת. וודא שהקוד שקיבלת נכון או בקש מהמלווה לוודא שהמסע נוצר.");
+            }, 10000); 
           }
         }
       }, 
       (error) => {
         console.error("Firestore sync error:", error);
-        if (error.code !== 'permission-denied') {
-          setSyncError("שגיאה בחיבור לשרת. בדוק את החיבור לאינטרנט.");
-        }
+        setSyncError("שגיאה בחיבור לשרת. בדוק את החיבור לאינטרנט.");
       }
     );
 
@@ -100,7 +102,6 @@ export default function Home() {
 
   const handleLogin = async (userData: User, customJoinCode?: string) => {
     try {
-      // נרמול הקוד - תמיד אותיות גדולות וללא רווחים
       const normalizedTripId = (customJoinCode || userData.tripId || "").trim().toUpperCase();
       
       if (!normalizedTripId) {
@@ -118,13 +119,21 @@ export default function Home() {
           students: []
         } as Trip;
         
-        // יצירה אופטימית ברקע
-        setDoc(doc(db, "trips", normalizedTripId), newTrip, { merge: true });
+        // יצירה בשרת - נשתמש ב-setDoc בלי await כדי לא לתקוע את הממשק
+        setDoc(doc(db, "trips", normalizedTripId), newTrip, { merge: true })
+          .catch(e => console.error("Error creating trip:", e));
       }
 
       if (userData.role === 'student') {
         const tripRef = doc(db, "trips", normalizedTripId);
-        // בדיקה אופטימית - אם נכשל בגלל אופליין נמשיך בכל זאת
+        
+        // בדיקה אם הטיול קיים לפני שנכנסים
+        const tripSnap = await getDoc(tripRef);
+        if (!tripSnap.exists()) {
+          throw new Error("קוד המסע שהזנת לא קיים במערכת. בדוק שוב את הקוד.");
+        }
+
+        // הוספת החניך לרשימה
         updateDoc(tripRef, {
           students: arrayUnion({ id: userData.id, name: userData.name })
         }).catch(e => {
@@ -144,7 +153,7 @@ export default function Home() {
       toast({
         variant: "destructive",
         title: "שגיאה בכניסה",
-        description: error.message || "לא הצלחנו להתחבר."
+        description: error.message || "לא הצלחנו להתחבר לשרת."
       });
       throw error;
     }
@@ -162,11 +171,11 @@ export default function Home() {
     setSyncError(null);
     setTimeout(() => {
       setIsRetrying(false);
-      // טריגר לרענון ה-Effect
+      // רענון הסטייט כדי להפעיל את ה-Effect מחדש
       if (user) {
         const temp = {...user};
         setUser(null);
-        setTimeout(() => setUser(temp), 50);
+        setTimeout(() => setUser(temp), 100);
       }
     }, 500);
   };
@@ -203,7 +212,7 @@ export default function Home() {
           <div className="space-y-4 animate-in fade-in duration-500">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
             <h2 className="text-xl font-bold">{syncError}</h2>
-            <p className="text-sm text-muted-foreground">נסה לבדוק את הקוד שוב או להתחבר מחדש.</p>
+            <p className="text-sm text-muted-foreground">נסה לבדוק את הקוד שוב או לבקש מהמלווה קישור חדש.</p>
             <div className="flex flex-col gap-2 pt-4">
               <Button onClick={handleRetry} className="w-full gap-2">
                 <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
@@ -216,8 +225,8 @@ export default function Home() {
           <div className="space-y-6">
             <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
             <div className="space-y-2">
-              <h2 className="text-xl font-bold">מתחבר לנתוני המסע...</h2>
-              <p className="text-sm text-muted-foreground">זה עשוי לקחת כמה שניות בחיבור ראשון</p>
+              <h2 className="text-xl font-bold">מתחבר למסע...</h2>
+              <p className="text-sm text-muted-foreground">מנסה לסנכרן נתונים מהשרת</p>
             </div>
           </div>
         )}
