@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { 
   initializeFirestore, 
@@ -17,7 +18,7 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// הגדרת Firestore עם Long Polling ו-Persistence לשיפור יציבות בסביבות ענן
+// שימוש ב-Long Polling חיוני בסביבות ענן מסוימות למניעת תקיעות בחיבור
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ 
     tabManager: persistentMultipleTabManager() 

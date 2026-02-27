@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -71,7 +72,7 @@ export default function Home() {
         } else {
           // אם אנחנו מלווה, אולי הטיול בדרך? ניתן לו צ'אנס
           if (user.role === 'guide') {
-            console.log("Guide trip not found yet, waiting for creation...");
+            console.log("Waiting for trip document to be created...");
           } else {
             setSyncError("לא מצאנו את נתוני המסע בשרת. וודא שהקוד שקיבלת נכון.");
           }
@@ -79,7 +80,10 @@ export default function Home() {
       }, 
       (error) => {
         console.error("Firestore sync error:", error);
-        setSyncError("שגיאה בחיבור לשרת. וודא שיש לך חיבור אינטרנט תקין.");
+        // לא נקפוץ מיד לשגיאה כי לפעמים זה לוקח זמן להתחבר בסביבת פיתוח
+        if (error.code !== 'permission-denied') {
+          setSyncError("שגיאה בחיבור לשרת. נסה לרענן.");
+        }
       }
     );
 
@@ -96,7 +100,7 @@ export default function Home() {
 
       userData.tripId = normalizedTripId;
 
-      // מלווה יוצר טיול חדש
+      // מלווה יוצר טיול חדש - ללא await כדי למנוע תקיעה
       if (userData.role === 'guide' && customJoinCode) {
         const newTrip: Trip = {
           ...STATIC_INITIAL_TRIP,
@@ -106,25 +110,36 @@ export default function Home() {
           students: []
         } as Trip;
         
-        // נשמור קודם בשרת ורק אז נמשיך
-        await setDoc(doc(db, "trips", normalizedTripId), newTrip, { merge: true });
+        // שליחה לשרת ברקע
+        setDoc(doc(db, "trips", normalizedTripId), newTrip, { merge: true }).catch(err => {
+          console.error("Failed to create trip document:", err);
+        });
       }
 
       // חניך מצטרף לטיול קיים
       if (userData.role === 'student') {
         const tripRef = doc(db, "trips", normalizedTripId);
-        const tripSnap = await getDoc(tripRef);
-        
-        if (!tripSnap.exists()) {
-          throw new Error("קוד הטיול אינו קיים. אנא בדוק שוב עם המלווה.");
+        // כאן אנחנו חייבים לוודא שהטיול קיים, אבל עם טיפול בשגיאות
+        try {
+          const tripSnap = await getDoc(tripRef);
+          if (!tripSnap.exists()) {
+            throw new Error("קוד הטיול אינו קיים. אנא בדוק שוב עם המלווה.");
+          }
+          // עדכון החניך ברקע
+          updateDoc(tripRef, {
+            students: arrayUnion({ id: userData.id, name: userData.name })
+          }).catch(e => console.error("Sync error for student join:", e));
+        } catch (e: any) {
+          if (e.message.includes("offline")) {
+            // אם אנחנו אופליין, נאפשר לו להיכנס ונקווה שהסנכרון יעבוד בהמשך
+            console.warn("Offline join attempt");
+          } else {
+            throw e;
+          }
         }
-
-        // הוספת החניך לרשימה
-        await updateDoc(tripRef, {
-          students: arrayUnion({ id: userData.id, name: userData.name })
-        });
       }
 
+      // המשך מיידי לממשק
       setUser(userData);
       localStorage.setItem("masaon_user", JSON.stringify(userData));
       
@@ -133,11 +148,13 @@ export default function Home() {
         description: "מתחבר לנתוני המסע..."
       });
     } catch (error: any) {
+      console.error("Login process error:", error);
       toast({
         variant: "destructive",
         title: "שגיאה בתהליך הכניסה",
         description: error.message || "לא הצלחנו להתחבר כרגע."
       });
+      throw error; // חשוב כדי שה-AuthScreen יפסיק את מצב הטעינה
     }
   };
 
@@ -150,11 +167,15 @@ export default function Home() {
 
   const handleRetry = () => {
     setIsRetrying(true);
-    // פשוט נרענן את המצב כדי לעורר את ה-useEffect
-    const currentTripId = user?.tripId;
-    if (currentTripId) {
-      setTimeout(() => setIsRetrying(false), 1000);
-    }
+    setTimeout(() => {
+      setIsRetrying(false);
+      // רענון החיבור על ידי שינוי קטן במצב
+      if (user) {
+        const temp = {...user};
+        setUser(null);
+        setTimeout(() => setUser(temp), 10);
+      }
+    }, 1000);
   };
 
   const updateTripInFirestore = (newTripData: Trip | ((prev: Trip) => Trip)) => {
@@ -167,7 +188,7 @@ export default function Home() {
       updated = newTripData;
     }
 
-    // עדכון אופטימי בשרת (ללא await כדי שה-UI יגיב מהר)
+    // עדכון אופטימי בשרת (ללא await)
     setDoc(doc(db, "trips", user.tripId), updated, { merge: true }).catch(err => {
       console.error("Firestore update failed:", err);
       toast({
@@ -209,7 +230,7 @@ export default function Home() {
           <div className="space-y-6">
             <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
             <div className="space-y-2">
-              <h2 className="text-xl font-bold">מתחבר לנתוני המסע בשרת...</h2>
+              <h2 className="text-xl font-bold">מתחבר לנתוני המסע...</h2>
               <p className="text-sm text-muted-foreground">זה עשוי לקחת כמה שניות בחיבור ראשון</p>
             </div>
             <Button variant="ghost" onClick={handleLogout} className="text-xs">ביטול וחזרה</Button>
