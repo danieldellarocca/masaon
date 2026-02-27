@@ -13,17 +13,11 @@ import {
   setDoc, 
   updateDoc, 
   arrayUnion, 
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs
+  getDoc
 } from "firebase/firestore";
+import { Button } from "@/components/ui/button";
 
-const STATIC_INITIAL_TRIP: Trip = {
-  id: "trip-1",
-  name: "מסע חדש",
-  joinCode: "WELCOME",
+const STATIC_INITIAL_TRIP: Omit<Trip, "id" | "joinCode" | "name"> = {
   itinerary: [],
   notices: [],
   logistics: [],
@@ -42,6 +36,7 @@ export default function Home() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Load user from localStorage on mount
   useEffect(() => {
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
@@ -55,6 +50,7 @@ export default function Home() {
     setIsLoaded(true);
   }, []);
 
+  // Listen to Trip data in Firestore
   useEffect(() => {
     if (!user || !user.tripId) {
       setTrip(null);
@@ -65,6 +61,8 @@ export default function Home() {
       if (docSnap.exists()) {
         const data = docSnap.data() as Trip;
         setTrip(data);
+      } else {
+        console.error("Trip document not found");
       }
     });
 
@@ -80,7 +78,7 @@ export default function Home() {
         joinCode: customJoinCode,
         name: `מסע של ${userData.name}`,
         students: []
-      };
+      } as Trip;
       
       await setDoc(doc(db, "trips", tripId), newTrip);
       userData.tripId = tripId;
@@ -91,10 +89,11 @@ export default function Home() {
       const tripSnap = await getDoc(tripRef);
       
       if (!tripSnap.exists()) {
-        alert("קוד טיול לא נמצא!");
+        alert("קוד טיול לא נמצא! וודא שהזנת את הקוד הנכון.");
         return;
       }
       
+      // Add student to the trip's students list if not already there
       await updateDoc(tripRef, {
         students: arrayUnion({ id: userData.id, name: userData.name })
       });
@@ -110,7 +109,8 @@ export default function Home() {
     localStorage.removeItem("masaon_user");
   };
 
-  const updateTrip = async (newTripData: Trip | ((prev: Trip) => Trip)) => {
+  // Centralized update function that writes to Firestore
+  const updateTripInFirestore = async (newTripData: Trip | ((prev: Trip) => Trip)) => {
     if (!user?.tripId || !trip) return;
     
     let updated: Trip;
@@ -120,7 +120,8 @@ export default function Home() {
       updated = newTripData;
     }
 
-    await setDoc(doc(db, "trips", user.tripId), updated);
+    // Persist to Firestore
+    await setDoc(doc(db, "trips", user.tripId), updated, { merge: true });
   };
 
   if (!isLoaded) return (
@@ -136,8 +137,8 @@ export default function Home() {
   if (!trip && user.tripId) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <p className="text-primary font-bold mb-4">מתחבר למסע...</p>
-        <Button variant="outline" onClick={handleLogout}>התנתק</Button>
+        <p className="text-primary font-bold mb-4">מתחבר לנתוני המסע ב-Firebase...</p>
+        <Button variant="outline" onClick={handleLogout}>התנתק וחזור למסך כניסה</Button>
       </div>
     );
   }
@@ -148,14 +149,14 @@ export default function Home() {
         <GuideDashboard 
           user={user} 
           trip={trip!} 
-          setTrip={updateTrip as any} 
+          setTrip={updateTripInFirestore as any} 
           onLogout={handleLogout} 
         />
       ) : (
         <StudentDashboard 
           user={user} 
           trip={trip!} 
-          setTrip={updateTrip as any} 
+          setTrip={updateTripInFirestore as any} 
           onLogout={handleLogout} 
         />
       )}

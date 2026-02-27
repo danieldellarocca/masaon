@@ -22,7 +22,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   const [code, setCode] = useState("");
   const [isHuman, setIsHuman] = useState(false);
 
-  // מפתח ה-reCAPTCHA החדש שסיפקת
+  // ה-Site Key שסיפקת ל-reCAPTCHA
   const RECAPTCHA_SITE_KEY = "6Ldn1ngsAAAAAICg5iQURWxtJXz2VRmIiEmaPMwe";
 
   useEffect(() => {
@@ -90,34 +90,36 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
             </div>
           ) : (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="space-y-2">
+              <div className="space-y-2 text-right">
                 <Label htmlFor="name">שם מלא</Label>
                 <Input
                   id="name"
                   placeholder="הכנס שם מלא"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  className="text-right"
                 />
               </div>
               
               {role === "student" && (
-                <div className="space-y-2">
+                <div className="space-y-2 text-right">
                   <Label htmlFor="code">קוד הצטרפות</Label>
                   <Input
                     id="code"
                     placeholder="הכנס קוד טיול"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
+                    className="text-right"
                   />
                 </div>
               )}
 
               <div className="space-y-3 py-2">
-                <div className="flex items-center gap-2 text-sm font-bold text-primary mb-1">
+                <div className="flex items-center gap-2 text-sm font-bold text-primary mb-1 justify-center">
                   <ShieldCheck className="w-4 h-4" />
                   אימות אנושי
                 </div>
-                <div className="flex justify-center">
+                <div className="flex justify-center overflow-hidden">
                   <ReCAPTCHA
                     sitekey={RECAPTCHA_SITE_KEY}
                     onChange={handleCaptchaChange}
