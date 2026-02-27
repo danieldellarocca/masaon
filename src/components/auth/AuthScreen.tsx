@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Role, User } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,26 +9,32 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { UserCircle, GraduationCap, MapPin, ShieldCheck } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import ReCAPTCHA from "react-google-recaptcha";
+import { useSearchParams } from "next/navigation";
 
 interface AuthScreenProps {
   onLogin: (user: User, customJoinCode?: string) => void;
 }
 
 export function AuthScreen({ onLogin }: AuthScreenProps) {
+  const searchParams = useSearchParams();
   const [role, setRole] = useState<Role | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [isHuman, setIsHuman] = useState(false);
 
-  // Updated with the user-provided reCAPTCHA Enterprise Site Key
-  const RECAPTCHA_SITE_KEY = "6Ldn1ngsAAAAADdFNFyMKm0QFXAO2bmalstxgKcZ";
+  // מפתח ה-reCAPTCHA החדש שסיפקת
+  const RECAPTCHA_SITE_KEY = "6Ldn1ngsAAAAAICg5iQURWxtJXz2VRmIiEmaPMwe";
+
+  useEffect(() => {
+    const joinCode = searchParams.get("join");
+    if (joinCode) {
+      setCode(joinCode);
+      setRole("student");
+    }
+  }, [searchParams]);
 
   const handleCaptchaChange = (value: string | null) => {
-    if (value) {
-      setIsHuman(true);
-    } else {
-      setIsHuman(false);
-    }
+    setIsHuman(!!value);
   };
 
   const generateJoinCode = () => {
@@ -46,7 +52,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
       id: userId,
       name,
       role,
-      tripId: role === "student" ? "trip-1" : undefined
+      tripId: role === "student" ? code : undefined
     }, newJoinCode);
   };
 
@@ -106,7 +112,6 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                 </div>
               )}
 
-              {/* Google reCAPTCHA Section */}
               <div className="space-y-3 py-2">
                 <div className="flex items-center gap-2 text-sm font-bold text-primary mb-1">
                   <ShieldCheck className="w-4 h-4" />
@@ -116,10 +121,9 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                   <ReCAPTCHA
                     sitekey={RECAPTCHA_SITE_KEY}
                     onChange={handleCaptchaChange}
-                    hl="iw" // Hebrew language
+                    hl="iw"
                   />
                 </div>
-                <p className="text-[10px] text-center text-muted-foreground italic">נא לאשר שאינך רובוט כדי להמשיך.</p>
               </div>
 
               <Button 

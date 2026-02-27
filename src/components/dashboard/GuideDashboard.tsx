@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -23,7 +24,7 @@ import {
   Image as ImageIcon,
   CheckCircle,
   Users,
-  UserCheck
+  Share2
 } from "lucide-react";
 import { NoticeBoard } from "@/components/features/NoticeBoard";
 import { BoardingCheck } from "@/components/features/BoardingCheck";
@@ -46,6 +47,15 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
   const [tempTripName, setTempTripName] = useState(trip.name);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [editingStudentName, setEditingStudentName] = useState("");
+
+  const shareJoinLink = () => {
+    const link = `${window.location.origin}?join=${trip.joinCode}`;
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "הקישור הועתק!",
+      description: "שלח אותו לחניכים כדי שיצטרפו למסע בקלות.",
+    });
+  };
 
   const addNotice = (content: string) => {
     const newNotice: Notice = {
@@ -188,8 +198,14 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
             </div>
           )}
           <p className="text-sm text-muted-foreground">שלום, {user.name} (מלווה)</p>
-          <div className="mt-1 bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full text-xs font-semibold inline-block">
-            קוד הצטרפות: {trip.joinCode}
+          <div className="flex items-center gap-2 mt-1">
+            <div className="bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full text-xs font-semibold inline-block">
+              קוד הצטרפות: {trip.joinCode}
+            </div>
+            <Button variant="ghost" size="sm" onClick={shareJoinLink} className="h-6 px-2 text-[10px] gap-1">
+              <Share2 className="w-3 h-3" />
+              שתף קישור
+            </Button>
           </div>
         </div>
         <Button variant="ghost" size="icon" onClick={onLogout}>

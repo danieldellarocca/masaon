@@ -6,8 +6,20 @@ import { User, Trip } from "@/lib/types";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { GuideDashboard } from "@/components/dashboard/GuideDashboard";
 import { StudentDashboard } from "@/components/dashboard/StudentDashboard";
+import { db } from "@/firebase/config";
+import { 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  updateDoc, 
+  arrayUnion, 
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs
+} from "firebase/firestore";
 
-// Static initial state for the trip to avoid hydration mismatches
 const STATIC_INITIAL_TRIP: Trip = {
   id: "trip-1",
   name: "מסע חדש",
@@ -27,101 +39,88 @@ const STATIC_INITIAL_TRIP: Trip = {
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  const [trip, setTrip] = useState<Trip>(STATIC_INITIAL_TRIP);
+  const [trip, setTrip] = useState<Trip | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Load data only on client-side to prevent hydration errors
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
       } catch (e) {
         localStorage.removeItem("masaon_user");
       }
     }
-    
-    const savedTrip = localStorage.getItem("masaon_trip");
-    if (savedTrip) {
-      try {
-        const parsedTrip = JSON.parse(savedTrip);
-        setTrip(prev => ({ 
-          ...prev, 
-          ...parsedTrip,
-          // Ensure arrays are initialized if missing in saved data
-          emergencyContacts: parsedTrip.emergencyContacts || prev.emergencyContacts,
-          itinerary: parsedTrip.itinerary || prev.itinerary,
-          notices: parsedTrip.notices || [],
-          students: parsedTrip.students || [],
-          reports: parsedTrip.reports || []
-        }));
-      } catch (e) {
-        console.error("Failed to parse saved trip", e);
-      }
-    } else {
-      // Set a dynamic date only on client side
-      setTrip(prev => ({
-        ...prev,
-        itinerary: [
-          { 
-            dayNumber: 1, 
-            date: new Date().toISOString().split('T')[0], 
-            location: "נקודת התחלה", 
-            activities: "התחלת המסע",
-            sites: []
-          }
-        ]
-      }));
-    }
-    
     setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("masaon_trip", JSON.stringify(trip));
-      
-      const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === "masaon_trip" && e.newValue) {
-          try {
-            setTrip(JSON.parse(e.newValue));
-          } catch (err) {
-            console.error("Failed to parse storage update", err);
-          }
-        }
-      };
-      window.addEventListener("storage", handleStorageChange);
-      return () => window.removeEventListener("storage", handleStorageChange);
+    if (!user || !user.tripId) {
+      setTrip(null);
+      return;
     }
-  }, [trip, isLoaded]);
 
-  const handleLogin = (userData: User, customJoinCode?: string) => {
-    setUser(userData);
-    localStorage.setItem("masaon_user", JSON.stringify(userData));
-    
+    const unsub = onSnapshot(doc(db, "trips", user.tripId), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as Trip;
+        setTrip(data);
+      }
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  const handleLogin = async (userData: User, customJoinCode?: string) => {
     if (userData.role === 'guide' && customJoinCode) {
-      setTrip(prev => ({
-        ...prev,
+      const tripId = customJoinCode;
+      const newTrip: Trip = {
+        ...STATIC_INITIAL_TRIP,
+        id: tripId,
         joinCode: customJoinCode,
+        name: `מסע של ${userData.name}`,
         students: []
-      }));
+      };
+      
+      await setDoc(doc(db, "trips", tripId), newTrip);
+      userData.tripId = tripId;
     }
 
-    if (userData.role === 'student') {
-      setTrip(prev => {
-        const studentExists = prev.students?.some(s => s.id === userData.id);
-        if (studentExists) return prev;
-        return {
-          ...prev,
-          students: [...(prev.students || []), { id: userData.id, name: userData.name }]
-        };
+    if (userData.role === 'student' && userData.tripId) {
+      const tripRef = doc(db, "trips", userData.tripId);
+      const tripSnap = await getDoc(tripRef);
+      
+      if (!tripSnap.exists()) {
+        alert("קוד טיול לא נמצא!");
+        return;
+      }
+      
+      await updateDoc(tripRef, {
+        students: arrayUnion({ id: userData.id, name: userData.name })
       });
     }
+
+    setUser(userData);
+    localStorage.setItem("masaon_user", JSON.stringify(userData));
   };
 
   const handleLogout = () => {
     setUser(null);
+    setTrip(null);
     localStorage.removeItem("masaon_user");
+  };
+
+  const updateTrip = async (newTripData: Trip | ((prev: Trip) => Trip)) => {
+    if (!user?.tripId || !trip) return;
+    
+    let updated: Trip;
+    if (typeof newTripData === 'function') {
+      updated = newTripData(trip);
+    } else {
+      updated = newTripData;
+    }
+
+    await setDoc(doc(db, "trips", user.tripId), updated);
   };
 
   if (!isLoaded) return (
@@ -134,12 +133,31 @@ export default function Home() {
     return <AuthScreen onLogin={handleLogin} />;
   }
 
+  if (!trip && user.tripId) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <p className="text-primary font-bold mb-4">מתחבר למסע...</p>
+        <Button variant="outline" onClick={handleLogout}>התנתק</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {user.role === "guide" ? (
-        <GuideDashboard user={user} trip={trip} setTrip={setTrip} onLogout={handleLogout} />
+        <GuideDashboard 
+          user={user} 
+          trip={trip!} 
+          setTrip={updateTrip as any} 
+          onLogout={handleLogout} 
+        />
       ) : (
-        <StudentDashboard user={user} trip={trip} setTrip={setTrip} onLogout={handleLogout} />
+        <StudentDashboard 
+          user={user} 
+          trip={trip!} 
+          setTrip={updateTrip as any} 
+          onLogout={handleLogout} 
+        />
       )}
     </div>
   );
