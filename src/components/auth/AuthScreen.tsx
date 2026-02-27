@@ -6,9 +6,8 @@ import { Role, User } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { UserCircle, GraduationCap, MapPin, ShieldCheck } from "lucide-react";
+import { UserCircle, GraduationCap, MapPin } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import ReCAPTCHA from "react-google-recaptcha";
 import { useSearchParams } from "next/navigation";
 
 interface AuthScreenProps {
@@ -20,10 +19,6 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   const [role, setRole] = useState<Role | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [isHuman, setIsHuman] = useState(false);
-
-  // ה-Site Key שסיפקת ל-reCAPTCHA
-  const RECAPTCHA_SITE_KEY = "6Ldn1ngsAAAAAICg5iQURWxtJXz2VRmIiEmaPMwe";
 
   useEffect(() => {
     const joinCode = searchParams.get("join");
@@ -33,16 +28,12 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     }
   }, [searchParams]);
 
-  const handleCaptchaChange = (value: string | null) => {
-    setIsHuman(!!value);
-  };
-
   const generateJoinCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   };
 
   const handleJoin = () => {
-    if (!name || !role || !isHuman) return;
+    if (!name || !role) return;
     if (role === "student" && !code) return;
 
     const userId = Math.random().toString(36).substr(2, 9);
@@ -114,24 +105,10 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                 </div>
               )}
 
-              <div className="space-y-3 py-2">
-                <div className="flex items-center gap-2 text-sm font-bold text-primary mb-1 justify-center">
-                  <ShieldCheck className="w-4 h-4" />
-                  אימות אנושי
-                </div>
-                <div className="flex justify-center overflow-hidden">
-                  <ReCAPTCHA
-                    sitekey={RECAPTCHA_SITE_KEY}
-                    onChange={handleCaptchaChange}
-                    hl="iw"
-                  />
-                </div>
-              </div>
-
               <Button 
                 onClick={handleJoin} 
                 className="w-full bg-primary hover:bg-primary/90"
-                disabled={!name || (role === 'student' && !code) || !isHuman}
+                disabled={!name || (role === 'student' && !code)}
               >
                 {role === "guide" ? "צור טיול והצטרף" : "הצטרף לטיול"}
               </Button>
