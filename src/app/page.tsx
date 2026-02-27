@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,11 +11,12 @@ import {
   onSnapshot, 
   setDoc, 
   updateDoc, 
-  arrayUnion
+  arrayUnion,
+  getDoc
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, RefreshCw } from "lucide-react";
 
 const STATIC_INITIAL_TRIP: Omit<Trip, "id" | "joinCode" | "name"> = {
   itinerary: [],
@@ -38,8 +38,9 @@ export default function Home() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
-  // טעינת משתמש קיים
+  // טעינת משתמש קיים מ-localStorage
   useEffect(() => {
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
@@ -68,7 +69,12 @@ export default function Home() {
           setTrip({ ...docSnap.data(), id: docSnap.id } as Trip);
           setSyncError(null);
         } else {
-          setSyncError("לא מצאנו את נתוני המסע בשרת. ייתכן שהקוד שגוי או שהמסע נמחק.");
+          // אם אנחנו מלווה, אולי הטיול בדרך? ניתן לו צ'אנס
+          if (user.role === 'guide') {
+            console.log("Guide trip not found yet, waiting for creation...");
+          } else {
+            setSyncError("לא מצאנו את נתוני המסע בשרת. וודא שהקוד שקיבלת נכון.");
+          }
         }
       }, 
       (error) => {
@@ -78,7 +84,7 @@ export default function Home() {
     );
 
     return () => unsub();
-  }, [user?.tripId]);
+  }, [user?.tripId, user?.role]);
 
   const handleLogin = async (userData: User, customJoinCode?: string) => {
     try {
@@ -90,6 +96,7 @@ export default function Home() {
 
       userData.tripId = normalizedTripId;
 
+      // מלווה יוצר טיול חדש
       if (userData.role === 'guide' && customJoinCode) {
         const newTrip: Trip = {
           ...STATIC_INITIAL_TRIP,
@@ -99,16 +106,22 @@ export default function Home() {
           students: []
         } as Trip;
         
-        // יצירה אופטימית
-        setDoc(doc(db, "trips", normalizedTripId), newTrip, { merge: true });
+        // נשמור קודם בשרת ורק אז נמשיך
+        await setDoc(doc(db, "trips", normalizedTripId), newTrip, { merge: true });
       }
 
+      // חניך מצטרף לטיול קיים
       if (userData.role === 'student') {
-        // עדכון רשימת הסטודנטים ברקע
-        updateDoc(doc(db, "trips", normalizedTripId), {
+        const tripRef = doc(db, "trips", normalizedTripId);
+        const tripSnap = await getDoc(tripRef);
+        
+        if (!tripSnap.exists()) {
+          throw new Error("קוד הטיול אינו קיים. אנא בדוק שוב עם המלווה.");
+        }
+
+        // הוספת החניך לרשימה
+        await updateDoc(tripRef, {
           students: arrayUnion({ id: userData.id, name: userData.name })
-        }).catch(() => {
-          // אם נכשל (למשל הטיול לא קיים), ה-onSnapshot יתפוס את זה
         });
       }
 
@@ -122,7 +135,7 @@ export default function Home() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "שגיאה בכניסה",
+        title: "שגיאה בתהליך הכניסה",
         description: error.message || "לא הצלחנו להתחבר כרגע."
       });
     }
@@ -135,6 +148,15 @@ export default function Home() {
     localStorage.removeItem("masaon_user");
   };
 
+  const handleRetry = () => {
+    setIsRetrying(true);
+    // פשוט נרענן את המצב כדי לעורר את ה-useEffect
+    const currentTripId = user?.tripId;
+    if (currentTripId) {
+      setTimeout(() => setIsRetrying(false), 1000);
+    }
+  };
+
   const updateTripInFirestore = (newTripData: Trip | ((prev: Trip) => Trip)) => {
     if (!user?.tripId || !trip) return;
     
@@ -145,6 +167,7 @@ export default function Home() {
       updated = newTripData;
     }
 
+    // עדכון אופטימי בשרת (ללא await כדי שה-UI יגיב מהר)
     setDoc(doc(db, "trips", user.tripId), updated, { merge: true }).catch(err => {
       console.error("Firestore update failed:", err);
       toast({
@@ -174,7 +197,13 @@ export default function Home() {
             <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
             <h2 className="text-xl font-bold">{syncError}</h2>
             <p className="text-sm text-muted-foreground">נסה לבדוק את הקוד שוב או להתחבר מחדש.</p>
-            <Button variant="outline" onClick={handleLogout} className="w-full">התנתק וחזור</Button>
+            <div className="flex flex-col gap-2 pt-4">
+              <Button onClick={handleRetry} className="w-full gap-2">
+                <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+                נסה שוב
+              </Button>
+              <Button variant="outline" onClick={handleLogout} className="w-full">התנתק וחזור</Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
