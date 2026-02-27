@@ -70,6 +70,7 @@ export default function Home() {
     console.log("Subscribing to trip:", user.tripId);
     const tripRef = doc(db, "trips", user.tripId);
     
+    // ניקוי טיימר קודם
     if (notFoundTimeoutRef.current) {
       clearTimeout(notFoundTimeoutRef.current);
     }
@@ -84,7 +85,7 @@ export default function Home() {
           setTrip({ ...docSnap.data(), id: docSnap.id } as Trip);
           setSyncError(null);
         } else {
-          // נותנים לזה 10 שניות לפני שמתייאשים
+          // נותנים לזה 10 שניות לפני שמחליטים שהמסמך לא קיים
           if (!notFoundTimeoutRef.current) {
             notFoundTimeoutRef.current = setTimeout(() => {
               setSyncError("לא מצאנו את נתוני המסע בשרת. וודא שהקוד שקיבלת נכון.");
@@ -94,7 +95,10 @@ export default function Home() {
       }, 
       (error) => {
         console.error("Firestore sync error:", error);
-        setSyncError("שגיאה בחיבור לשרת. בדוק את החיבור לאינטרנט.");
+        // אם אנחנו ב-Offline, לא נקפוץ מיד לשגיאה קריטית, אלא נמשיך לחכות
+        if (error.code !== 'unavailable') {
+          setSyncError("שגיאה בחיבור לשרת. בדוק את החיבור לאינטרנט.");
+        }
       }
     );
 
@@ -123,24 +127,25 @@ export default function Home() {
           students: []
         } as Trip;
         
-        // יצירה בשרת - אופטימי
+        // יצירה בשרת - אופטימי (לא מחכים לשרת)
         setDoc(doc(db, "trips", normalizedTripId), newTrip, { merge: true })
-          .catch(e => console.error("Error creating trip:", e));
+          .catch(e => console.warn("Background creation delay:", e));
       }
 
       if (userData.role === 'student') {
         const tripRef = doc(db, "trips", normalizedTripId);
         
-        // בדיקה מהירה אם הטיול קיים
-        const tripSnap = await getDoc(tripRef);
-        if (!tripSnap.exists()) {
-          throw new Error("קוד המסע שהזנת לא קיים במערכת.");
+        // בדיקה אופטימית - מנסים לקרוא אבל לא קורסים אם השרת איטי
+        try {
+          const tripSnap = await getDoc(tripRef);
+          if (tripSnap.exists()) {
+            updateDoc(tripRef, {
+              students: arrayUnion({ id: userData.id, name: userData.name })
+            }).catch(e => console.warn("Could not sync student join immediately"));
+          }
+        } catch (e) {
+          console.warn("Pre-check failed, continuing optimistically...", e);
         }
-
-        // הוספת החניך
-        updateDoc(tripRef, {
-          students: arrayUnion({ id: userData.id, name: userData.name })
-        }).catch(e => console.warn("Could not sync student join immediately"));
       }
 
       setUser(userData);
@@ -207,7 +212,6 @@ export default function Home() {
     return <AuthScreen onLogin={handleLogin} />;
   }
 
-  // אם המשתמש מחובר אבל הטיול עדיין לא נטען, נציג מסך טעינה
   if (!trip) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
@@ -215,7 +219,7 @@ export default function Home() {
           <div className="space-y-4 animate-in fade-in duration-500">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
             <h2 className="text-xl font-bold">{syncError}</h2>
-            <p className="text-sm text-muted-foreground">נסה לבדוק את הקוד שוב או לבקש מהמלווה קישור חדש.</p>
+            <p className="text-sm text-muted-foreground">נסה לבדוק את הקוד שוב או לבדוק את החיבור לאינטרנט.</p>
             <div className="flex flex-col gap-2 pt-4">
               <Button onClick={handleRetry} className="w-full gap-2">
                 <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
@@ -229,7 +233,7 @@ export default function Home() {
             <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
             <div className="space-y-2">
               <h2 className="text-xl font-bold">מתחבר למסע...</h2>
-              <p className="text-sm text-muted-foreground">מנסה לסנכרן נתונים מהשרת</p>
+              <p className="text-sm text-muted-foreground">אנחנו מנסים ליצור קשר עם השרת</p>
             </div>
           </div>
         )}
@@ -237,7 +241,6 @@ export default function Home() {
     );
   }
 
-  // רק כשיש גם משתמש וגם טיול, נציג את הדאשבורד
   return (
     <div className="min-h-screen bg-background">
       {user.role === "guide" ? (

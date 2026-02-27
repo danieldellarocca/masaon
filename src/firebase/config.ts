@@ -18,12 +18,13 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// שימוש ב-Long Polling חיוני בסביבות ענן מסוימות למניעת תקיעות בחיבור
+// שימוש ב-Long Polling חיוני בסביבות ענן למניעת תקיעות בחיבור (שגיאת Offline)
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ 
     tabManager: persistentMultipleTabManager() 
   }),
-  experimentalForceLongPolling: true
+  experimentalForceLongPolling: true,
+  useFetchStreams: false // מוסיף יציבות נוספת בסביבות פרוקסי
 });
 
 const auth = getAuth(app);
