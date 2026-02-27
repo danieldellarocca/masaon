@@ -24,7 +24,8 @@ import {
   Image as ImageIcon,
   CheckCircle,
   Users,
-  Share2
+  Share2,
+  Copy
 } from "lucide-react";
 import { NoticeBoard } from "@/components/features/NoticeBoard";
 import { BoardingCheck } from "@/components/features/BoardingCheck";
@@ -49,11 +50,20 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
   const [editingStudentName, setEditingStudentName] = useState("");
 
   const shareJoinLink = () => {
+    // הקישור משתמש בדומיין הנוכחי. בסביבת ייצור זה יהיה הדומיין הקצר שלך.
     const link = `${window.location.origin}?join=${trip.joinCode}`;
     navigator.clipboard.writeText(link);
     toast({
       title: "הקישור הועתק!",
-      description: "שלח אותו לחניכים כדי שיצטרפו למסע בקלות.",
+      description: "שלח אותו לחניכים בוואטסאפ כדי שיצטרפו למסע.",
+    });
+  };
+
+  const copyOnlyCode = () => {
+    navigator.clipboard.writeText(trip.joinCode);
+    toast({
+      title: "הקוד הועתק!",
+      description: `קוד המסע: ${trip.joinCode}`,
     });
   };
 
@@ -198,13 +208,18 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
             </div>
           )}
           <p className="text-sm text-muted-foreground">שלום, {user.name} (מלווה)</p>
-          <div className="flex items-center gap-2 mt-1">
-            <div className="bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full text-xs font-semibold inline-block">
-              קוד הצטרפות: {trip.joinCode}
+          
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/20">
+              קוד: {trip.joinCode}
             </div>
-            <Button variant="ghost" size="sm" onClick={shareJoinLink} className="h-6 px-2 text-[10px] gap-1">
+            <Button variant="outline" size="sm" onClick={shareJoinLink} className="h-8 gap-2 bg-green-50 text-green-700 hover:bg-green-100 border-green-200">
               <Share2 className="w-3 h-3" />
-              שתף קישור
+              שיתוף קישור
+            </Button>
+            <Button variant="ghost" size="sm" onClick={copyOnlyCode} className="h-8 gap-2 text-xs">
+              <Copy className="w-3 h-3" />
+              העתק קוד בלבד
             </Button>
           </div>
         </div>
@@ -222,7 +237,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
           <TabsTrigger value="reports" className="relative">
             תקלות
             {trip.reports?.filter(r => r.status === 'open').length ? (
-              <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
                 {trip.reports.filter(r => r.status === 'open').length}
               </span>
             ) : null}
@@ -232,7 +247,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="md:col-span-2 border-primary/50 bg-primary/5">
+            <Card className="md:col-span-2 border-primary/30 bg-primary/5">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Clock className="w-5 h-5 text-primary" />
@@ -242,7 +257,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-3 p-3 border rounded-lg bg-card">
                   <div className="flex items-center gap-2 font-bold mb-2">
-                    <Coffee className="w-4 h-4" />
+                    <Coffee className="w-4 h-4 text-orange-500" />
                     עצירת שירותים / רענון
                   </div>
                   {trip.activeRestStop ? (
@@ -267,7 +282,7 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
 
                 <div className="space-y-3 p-3 border rounded-lg bg-card">
                   <div className="flex items-center gap-2 font-bold mb-2">
-                    <Bus className="w-4 h-4" />
+                    <Bus className="w-4 h-4 text-blue-500" />
                     עלייה לאוטובוס
                   </div>
                   {trip.activeBoarding ? (
@@ -293,21 +308,21 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span>השכמה:</span>
+                  <span className="text-sm">זמן השכמה:</span>
                   <input 
                     type="time" 
                     value={trip.wakeUpTime || ""} 
                     onChange={(e) => updateTimes('wake', e.target.value)}
-                    className="border rounded px-2 py-1"
+                    className="border rounded px-2 py-1 text-sm"
                   />
                 </div>
                 <div className="flex justify-between items-center">
-                  <span>כיבוי אורות:</span>
+                  <span className="text-sm">כיבוי אורות:</span>
                   <input 
                     type="time" 
                     value={trip.lightsOutTime || ""} 
                     onChange={(e) => updateTimes('light', e.target.value)}
-                    className="border rounded px-2 py-1"
+                    className="border rounded px-2 py-1 text-sm"
                   />
                 </div>
               </CardContent>
@@ -341,17 +356,21 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
             </CardHeader>
             <CardContent>
               {(!trip.students || trip.students.length === 0) ? (
-                <div className="text-center py-8 text-muted-foreground">טרם נרשמו חניכים למסע.</div>
+                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <p>טרם נרשמו חניכים למסע.</p>
+                  <Button variant="link" onClick={shareJoinLink} className="mt-2">שתף קישור הזמנה</Button>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {trip.students.map(student => (
-                    <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                    <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg bg-card hover:border-primary/50 transition-colors">
                       {editingStudentId === student.id ? (
                         <div className="flex items-center gap-2 flex-1">
                           <Input 
                             value={editingStudentName} 
                             onChange={(e) => setEditingStudentName(e.target.value)}
                             className="h-8"
+                            autoFocus
                           />
                           <Button size="icon" variant="ghost" onClick={saveStudentName}>
                             <Check className="w-4 h-4 text-green-600" />
@@ -397,83 +416,78 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
             </CardHeader>
             <CardContent className="space-y-6">
               {(!trip.reports || trip.reports.length === 0) ? (
-                <div className="text-center py-8 text-muted-foreground">אין תקלות מדווחות כרגע.</div>
+                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">אין תקלות מדווחות כרגע.</div>
               ) : (
-                <div className="grid gap-8">
+                <div className="grid gap-6">
                   {trip.reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(report => (
-                    <div key={report.id} className="space-y-2">
-                      <div className="flex justify-between items-center bg-muted/50 px-4 py-3 rounded-t-lg border-x border-t">
-                        <span className="text-base font-bold text-primary flex items-center gap-2">
-                          <Calendar className="w-5 h-5" />
+                    <div key={report.id} className="space-y-0 border rounded-lg overflow-hidden">
+                      <div className="flex justify-between items-center bg-muted/30 px-4 py-2 border-b">
+                        <span className="text-xs font-bold text-muted-foreground flex items-center gap-2">
+                          <Clock className="w-3 h-3" />
                           {new Date(report.timestamp).toLocaleString('he-IL', { 
-                            dateStyle: 'medium', 
+                            dateStyle: 'short', 
                             timeStyle: 'short' 
                           })}
                         </span>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          className="h-6 w-6 text-destructive hover:bg-destructive/10"
                           onClick={() => deleteReport(report.id)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
-                      <Card className={`${report.status === 'fixed' ? 'opacity-60 grayscale' : 'border-destructive/30'} rounded-t-none border-t-0 shadow-none`}>
-                        <CardContent className="p-4 space-y-3">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-lg">חדר {report.roomNumber}</span>
-                                {report.status === 'open' && (
-                                  <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">חדש</span>
-                                )}
-                                {report.status === 'reported' && (
-                                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">דווח למלון</span>
-                                )}
-                                {report.status === 'fixed' && (
-                                  <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">טופל</span>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground">{report.studentName}</p>
+                      <div className={`${report.status === 'fixed' ? 'opacity-50 grayscale bg-muted/20' : ''} p-4 space-y-3`}>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-lg">חדר {report.roomNumber}</span>
+                              {report.status === 'open' && (
+                                <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">חדש</span>
+                              )}
+                              {report.status === 'reported' && (
+                                <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">דווח למלון</span>
+                              )}
+                              {report.status === 'fixed' && (
+                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">טופל</span>
+                              )}
                             </div>
+                            <p className="text-sm text-muted-foreground">מדווח: {report.studentName}</p>
                           </div>
-                          
-                          <p className="text-sm bg-muted/30 p-2 rounded">{report.description}</p>
-                          
-                          {report.photoUrl && (
-                            <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted group">
-                              <Image 
-                                src={report.photoUrl} 
-                                alt="Room fault" 
-                                fill 
-                                className="object-cover"
-                                data-ai-hint="Room fault"
-                              />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <ImageIcon className="text-white w-8 h-8" />
-                              </div>
-                            </div>
-                          )}
-                          
-                          {report.status === 'open' && (
-                            <Button 
-                              className="w-full h-8 text-xs bg-blue-600 hover:bg-blue-700" 
-                              onClick={() => markAsReportedToHotel(report.id)}
-                            >
-                              <Bell className="w-3 h-3 ml-1" />
-                              דווח למלון
-                            </Button>
-                          )}
-                          
-                          {report.status === 'reported' && (
-                            <div className="flex items-center justify-center gap-2 text-xs text-blue-600 font-medium bg-blue-50 py-2 rounded">
-                              <CheckCircle className="w-4 h-4" />
-                              התקלה דווחה. ממתין לאישור סופי מהחניך.
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+                        </div>
+                        
+                        <p className="text-sm bg-muted/40 p-3 rounded-md border">{report.description}</p>
+                        
+                        {report.photoUrl && (
+                          <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted">
+                            <Image 
+                              src={report.photoUrl} 
+                              alt="Room fault" 
+                              fill 
+                              className="object-cover"
+                              data-ai-hint="hotel room"
+                            />
+                          </div>
+                        )}
+                        
+                        {report.status === 'open' && (
+                          <Button 
+                            className="w-full h-9 bg-blue-600 hover:bg-blue-700" 
+                            onClick={() => markAsReportedToHotel(report.id)}
+                          >
+                            <Bell className="w-3 h-3 ml-2" />
+                            סמן כ"דווח למלון"
+                          </Button>
+                        )}
+                        
+                        {report.status === 'reported' && (
+                          <div className="flex items-center justify-center gap-2 text-xs text-blue-600 font-bold bg-blue-50 py-2 rounded-md border border-blue-100">
+                            <CheckCircle className="w-4 h-4" />
+                            הדיווח הועבר. ממתין לאישור סופי מהחניך.
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -491,33 +505,38 @@ export function GuideDashboard({ user, trip, setTrip, onLogout }: GuideDashboard
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input 
-                  placeholder="שם (לדוגמה: מדריך ראשי)" 
+                  placeholder="שם (לדוגמה: מוקד ביטחון)" 
                   value={newContact.name}
                   onChange={(e) => setNewContact(prev => ({ ...prev, name: e.target.value }))}
                 />
                 <Input 
-                  placeholder="טלפון" 
+                  placeholder="מספר טלפון" 
                   value={newContact.phone}
                   onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))}
                 />
-                <Button className="col-span-2" onClick={addContact}>
+                <Button className="sm:col-span-2 w-full" onClick={addContact} disabled={!newContact.name || !newContact.phone}>
                   <Plus className="w-4 h-4 ml-2" />
                   הוסף איש קשר
                 </Button>
               </div>
 
-              <div className="space-y-2 mt-4">
+              <div className="space-y-2 mt-6">
                 {(trip.emergencyContacts || []).map((contact, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 border rounded-lg">
-                    <div>
-                      <p className="font-bold">{contact.name}</p>
-                      <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                  <div key={idx} className="flex justify-between items-center p-3 border rounded-lg hover:bg-muted/30 transition-colors">
+                    <div className="flex flex-col">
+                      <span className="font-bold">{contact.name}</span>
+                      <span className="text-sm text-primary font-mono">{contact.phone}</span>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => removeContact(idx)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.location.href = `tel:${contact.phone}`}>
+                        <Phone className="w-4 h-4 text-green-600" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeContact(idx)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

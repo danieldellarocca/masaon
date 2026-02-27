@@ -38,13 +38,12 @@ export default function Home() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // טעינת משתמש קיים מ-localStorage בטעינה ראשונה (Client-side only)
+  // טעינת משתמש קיים מ-localStorage
   useEffect(() => {
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
       try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
+        setUser(JSON.parse(savedUser));
       } catch (e) {
         localStorage.removeItem("masaon_user");
       }
@@ -54,26 +53,31 @@ export default function Home() {
 
   // האזנה לשינויים בטיול בזמן אמת ב-Firestore
   useEffect(() => {
-    if (!user || !user.tripId) {
+    if (!user?.tripId) {
       setTrip(null);
       return;
     }
 
-    const unsub = onSnapshot(doc(db, "trips", user.tripId), (docSnap) => {
+    const tripRef = doc(db, "trips", user.tripId);
+    const unsub = onSnapshot(tripRef, (docSnap) => {
       if (docSnap.exists()) {
-        const data = docSnap.data() as Trip;
-        setTrip(data);
+        setTrip({ ...docSnap.data(), id: docSnap.id } as Trip);
+      } else {
+        console.warn("Trip document not found in Firestore");
+        // אם הטיול נמחק, כדאי להוציא את המשתמש
+        if (user.role === 'student') {
+          toast({ variant: "destructive", title: "המסע הסתיים", description: "המסע שאליו היית מחובר לא נמצא יותר." });
+          handleLogout();
+        }
       }
     }, (error) => {
-      console.error("Firestore listener error:", error);
+      console.error("Firestore sync error:", error);
     });
 
     return () => unsub();
-  }, [user]);
+  }, [user?.tripId]);
 
   const handleLogin = async (userData: User, customJoinCode?: string) => {
-    console.log("--- Starting Login Process ---", { role: userData.role, name: userData.name });
-
     try {
       if (userData.role === 'guide' && customJoinCode) {
         const tripId = customJoinCode;
@@ -85,61 +89,48 @@ export default function Home() {
           students: []
         } as Trip;
         
-        // יצירת הטיול ב-Firestore (Optimistic update)
+        // יצירת הטיול ללא await כדי לא להיתקע
         setDoc(doc(db, "trips", tripId), newTrip).catch(err => {
-          console.error("Failed to create trip document:", err);
-          toast({ variant: "destructive", title: "שגיאה ביצירת המסע", description: err.message });
+          console.error("Failed to sync new trip:", err);
         });
         
         userData.tripId = tripId;
       }
 
       if (userData.role === 'student' && userData.tripId) {
-        // ניקוי הקוד והפיכתו לאותיות גדולות
         const tripId = userData.tripId.trim().toUpperCase();
         const tripRef = doc(db, "trips", tripId);
         
-        console.log("Attempting to fetch trip with ID:", tripId);
-        
-        // בדיקת קיום הטיול - הוספת טיפול מיוחד בשגיאות חירום
-        const tripSnap = await getDoc(tripRef).catch(err => {
-          console.error("Firestore getDoc error:", err);
-          if (err.message?.includes('offline') || err.code === 'unavailable') {
-            throw new Error("לא ניתן להתחבר לשרת כרגע. אנא וודא שיש לך חיבור לאינטרנט ונסה שוב.");
-          }
-          throw err;
-        });
-        
+        // בדיקת קיום הטיול בצורה בטוחה
+        const tripSnap = await getDoc(tripRef);
         if (!tripSnap.exists()) {
-          throw new Error("קוד טיול לא נמצא. וודא שהזנת את הקוד הנכון שקיבלת מהמלווה.");
+          throw new Error("קוד מסע לא תקין. וודא שהזנת את הקוד שקיבלת מהמלווה.");
         }
         
         userData.tripId = tripId;
         
-        // הוספת החניך לרשימת הסטודנטים בטיול
+        // עדכון רשימת הסטודנטים ברקע
         updateDoc(tripRef, {
           students: arrayUnion({ id: userData.id, name: userData.name })
-        }).catch(err => {
-          console.error("Failed to add student to trip record:", err);
-        });
+        }).catch(err => console.error("Sync student error:", err));
       }
 
-      // שמירת המשתמש באופן מקומי והעברה לדאשבורד
+      // שמירה מקומית ומעבר לדאשבורד
       setUser(userData);
       localStorage.setItem("masaon_user", JSON.stringify(userData));
       
       toast({
-        title: "התחברת בהצלחה!",
-        description: `שלום ${userData.name}, ברוך הבא למסעון.`
+        title: "שלום " + userData.name,
+        description: "התחברת למסע בהצלחה."
       });
     } catch (error: any) {
       console.error("Login Error:", error);
       toast({
         variant: "destructive",
-        title: "שגיאה בחיבור",
-        description: error.message || "אירעה שגיאה לא צפויה בזמן החיבור למסע."
+        title: "שגיאה בכניסה",
+        description: error.message || "לא הצלחנו להתחבר למסע כרגע."
       });
-      throw error; // זריקת השגיאה חזרה ל-AuthScreen כדי לעצור את הטעינה
+      throw error;
     }
   };
 
@@ -159,13 +150,13 @@ export default function Home() {
       updated = newTripData;
     }
 
-    // עדכון ב-Firestore ללא המתנה (Optimistic)
+    // עדכון ב-Firestore ללא await לחוויה מהירה
     setDoc(doc(db, "trips", user.tripId), updated, { merge: true }).catch(err => {
-      console.error("Firestore write error:", err);
+      console.error("Firestore update failed:", err);
       toast({
         variant: "destructive",
-        title: "שגיאה בשמירת נתונים",
-        description: "לא הצלחנו לעדכן את השרת. השינוי נשמר מקומית."
+        title: "שגיאת סנכרון",
+        description: "השינוי נשמר מקומית אך לא נשלח לשרת."
       });
     });
   };
@@ -180,16 +171,15 @@ export default function Home() {
     return <AuthScreen onLogin={handleLogin} />;
   }
 
-  // אם המשתמש מחובר לטיול אך הנתונים עדיין לא נטענו מהשרת
   if (!trip && user.tripId) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
-        <p className="text-primary font-bold mb-4">מתחבר לנתוני המסע בשרת...</p>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-6"></div>
-        <p className="text-sm text-muted-foreground mb-4 max-w-xs">
-          זה עשוי לקחת מספר שניות בחיבור ראשון או במקרה של רשת איטית.
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-6"></div>
+        <h2 className="text-xl font-bold mb-2">מתחבר לנתוני המסע...</h2>
+        <p className="text-sm text-muted-foreground mb-8">
+          זה עשוי לקחת רגע בחיבור ראשון.
         </p>
-        <Button variant="outline" onClick={handleLogout}>התנתק וחזור למסך כניסה</Button>
+        <Button variant="outline" onClick={handleLogout}>התנתק וחזור</Button>
       </div>
     );
   }
