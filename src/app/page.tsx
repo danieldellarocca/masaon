@@ -70,78 +70,65 @@ export default function Home() {
   }, [user]);
 
   const handleLogin = async (userData: User, customJoinCode?: string) => {
-    console.log("--- Starting Login Process ---");
-    console.log("User:", userData.name, "Role:", userData.role);
+    console.log("--- Starting Login Process ---", { role: userData.role, name: userData.name });
 
     try {
-      // Create a timeout promise
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout: התקשורת עם השרת איטית מדי. נסה שוב בעוד רגע.")), 10000)
-      );
+      if (userData.role === 'guide' && customJoinCode) {
+        const tripId = customJoinCode;
+        const newTrip: Trip = {
+          ...STATIC_INITIAL_TRIP,
+          id: tripId,
+          joinCode: customJoinCode,
+          name: `המסע של ${userData.name}`,
+          students: []
+        } as Trip;
+        
+        // Don't await setDoc to leverage offline persistence and optimistic updates
+        setDoc(doc(db, "trips", tripId), newTrip).catch(err => {
+          console.error("Failed to create trip document:", err);
+          toast({ variant: "destructive", title: "שגיאה ביצירת המסע", description: err.message });
+        });
+        
+        userData.tripId = tripId;
+      }
 
-      const loginLogic = (async () => {
-        if (userData.role === 'guide' && customJoinCode) {
-          const tripId = customJoinCode;
-          console.log("Checkpoint 1: Creating new trip document in Firestore...", tripId);
-          
-          const newTrip: Trip = {
-            ...STATIC_INITIAL_TRIP,
-            id: tripId,
-            joinCode: customJoinCode,
-            name: `המסע של ${userData.name}`,
-            students: []
-          } as Trip;
-          
-          await setDoc(doc(db, "trips", tripId), newTrip);
-          console.log("Checkpoint 2: Trip document created successfully.");
-          userData.tripId = tripId;
-        }
-
-        if (userData.role === 'student' && userData.tripId) {
-          const tripId = userData.tripId.toUpperCase();
-          console.log("Checkpoint 1: Searching for trip with code:", tripId);
-          
-          const tripRef = doc(db, "trips", tripId);
-          const tripSnap = await getDoc(tripRef);
-          
-          if (!tripSnap.exists()) {
-            console.warn("Checkpoint Error: Trip code not found.");
-            throw new Error("קוד טיול לא נמצא. וודא שהזנת את הקוד הנכון שקיבלת מהמלווה.");
-          }
-          
-          console.log("Checkpoint 2: Trip found. Adding student to participants list...");
-          userData.tripId = tripId;
-          await updateDoc(tripRef, {
-            students: arrayUnion({ id: userData.id, name: userData.name })
-          });
-          console.log("Checkpoint 3: Student added successfully.");
+      if (userData.role === 'student' && userData.tripId) {
+        const tripId = userData.tripId.toUpperCase();
+        const tripRef = doc(db, "trips", tripId);
+        
+        // We MUST await the read to check if the trip exists
+        const tripSnap = await getDoc(tripRef);
+        
+        if (!tripSnap.exists()) {
+          throw new Error("קוד טיול לא נמצא. וודא שהזנת את הקוד הנכון שקיבלת מהמלווה.");
         }
         
-        return userData;
-      })();
+        userData.tripId = tripId;
+        // Don't await updateDoc
+        updateDoc(tripRef, {
+          students: arrayUnion({ id: userData.id, name: userData.name })
+        }).catch(err => {
+          console.error("Failed to add student to trip:", err);
+        });
+      }
 
-      // Race the login logic against the timeout
-      const finalUserData = await Promise.race([loginLogic, timeoutPromise]) as User;
-
-      console.log("--- Login Process Successful ---");
-      setUser(finalUserData);
-      localStorage.setItem("masaon_user", JSON.stringify(finalUserData));
+      // Finalize login locally
+      console.log("Login successful locally, updating state...");
+      setUser(userData);
+      localStorage.setItem("masaon_user", JSON.stringify(userData));
       
       toast({
         title: "התחברת בהצלחה!",
-        description: `שלום ${finalUserData.name}, ברוך הבא למסעון.`
+        description: `שלום ${userData.name}, ברוך הבא למסעון.`
       });
     } catch (error: any) {
-      console.error("--- Login Process Failed ---");
-      console.error("Detailed error:", error);
-      
+      console.error("Login Error:", error);
       toast({
         variant: "destructive",
         title: "שגיאה בחיבור",
         description: error.message || "אירעה שגיאה לא צפויה בזמן החיבור למסע."
       });
-      // Allow AuthScreen to reset loading state
-      throw error;
+      throw error; // Let AuthScreen handle the UI reset
     }
   };
 
@@ -151,26 +138,25 @@ export default function Home() {
     localStorage.removeItem("masaon_user");
   };
 
-  const updateTripInFirestore = async (newTripData: Trip | ((prev: Trip) => Trip)) => {
+  const updateTripInFirestore = (newTripData: Trip | ((prev: Trip) => Trip)) => {
     if (!user?.tripId || !trip) return;
     
-    try {
-      let updated: Trip;
-      if (typeof newTripData === 'function') {
-        updated = newTripData(trip);
-      } else {
-        updated = newTripData;
-      }
+    let updated: Trip;
+    if (typeof newTripData === 'function') {
+      updated = newTripData(trip);
+    } else {
+      updated = newTripData;
+    }
 
-      await setDoc(doc(db, "trips", user.tripId), updated, { merge: true });
-    } catch (error: any) {
-      console.error("Firestore write error:", error);
+    // Don't await mutation
+    setDoc(doc(db, "trips", user.tripId), updated, { merge: true }).catch(err => {
+      console.error("Firestore write error:", err);
       toast({
         variant: "destructive",
         title: "שגיאה בשמירת נתונים",
         description: "לא הצלחנו לעדכן את השרת."
       });
-    }
+    });
   };
 
   if (!isLoaded) return (
@@ -189,7 +175,7 @@ export default function Home() {
         <p className="text-primary font-bold mb-4">מתחבר לנתוני המסע בשרת...</p>
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-6"></div>
         <p className="text-sm text-muted-foreground mb-4 max-w-xs">
-          זה עשוי לקחת מספר שניות בחיבור ראשון. אם זה נמשך זמן רב, נסה להתנתק ולהתחבר שוב.
+          זה עשוי לקחת מספר שניות בחיבור ראשון.
         </p>
         <Button variant="outline" onClick={handleLogout}>התנתק וחזור למסך כניסה</Button>
       </div>
