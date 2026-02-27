@@ -6,12 +6,12 @@ import { Role, User } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { UserCircle, GraduationCap, MapPin } from "lucide-react";
+import { UserCircle, GraduationCap, MapPin, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useSearchParams } from "next/navigation";
 
 interface AuthScreenProps {
-  onLogin: (user: User, customJoinCode?: string) => void;
+  onLogin: (user: User, customJoinCode?: string) => Promise<void>;
 }
 
 export function AuthScreen({ onLogin }: AuthScreenProps) {
@@ -19,6 +19,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   const [role, setRole] = useState<Role | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const joinCode = searchParams.get("join");
@@ -32,19 +33,24 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   };
 
-  const handleJoin = () => {
-    if (!name || !role) return;
+  const handleJoin = async () => {
+    if (!name || !role || isLoading) return;
     if (role === "student" && !code) return;
 
-    const userId = Math.random().toString(36).substr(2, 9);
-    const newJoinCode = role === "guide" ? generateJoinCode() : undefined;
+    setIsLoading(true);
+    try {
+      const userId = Math.random().toString(36).substr(2, 9);
+      const newJoinCode = role === "guide" ? generateJoinCode() : undefined;
 
-    onLogin({
-      id: userId,
-      name,
-      role,
-      tripId: role === "student" ? code : undefined
-    }, newJoinCode);
+      await onLogin({
+        id: userId,
+        name,
+        role,
+        tripId: role === "student" ? code : undefined
+      }, newJoinCode);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -89,6 +95,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="text-right"
+                  disabled={isLoading}
                 />
               </div>
               
@@ -101,6 +108,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     className="text-right"
+                    disabled={isLoading}
                   />
                 </div>
               )}
@@ -108,12 +116,24 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
               <Button 
                 onClick={handleJoin} 
                 className="w-full bg-primary hover:bg-primary/90"
-                disabled={!name || (role === 'student' && !code)}
+                disabled={!name || (role === 'student' && !code) || isLoading}
               >
-                {role === "guide" ? "צור טיול והצטרף" : "הצטרף לטיול"}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    מעבד בקשה...
+                  </>
+                ) : (
+                  role === "guide" ? "צור טיול והצטרף" : "הצטרף לטיול"
+                )}
               </Button>
               
-              <Button variant="ghost" onClick={() => setRole(null)} className="w-full">
+              <Button 
+                variant="ghost" 
+                onClick={() => setRole(null)} 
+                className="w-full"
+                disabled={isLoading}
+              >
                 חזור לבחירת תפקיד
               </Button>
             </div>

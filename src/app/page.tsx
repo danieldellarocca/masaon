@@ -16,6 +16,7 @@ import {
   getDoc
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const STATIC_INITIAL_TRIP: Omit<Trip, "id" | "joinCode" | "name"> = {
   itinerary: [],
@@ -32,6 +33,7 @@ const STATIC_INITIAL_TRIP: Omit<Trip, "id" | "joinCode" | "name"> = {
 };
 
 export default function Home() {
+  const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -70,37 +72,55 @@ export default function Home() {
   }, [user]);
 
   const handleLogin = async (userData: User, customJoinCode?: string) => {
-    if (userData.role === 'guide' && customJoinCode) {
-      const tripId = customJoinCode;
-      const newTrip: Trip = {
-        ...STATIC_INITIAL_TRIP,
-        id: tripId,
-        joinCode: customJoinCode,
-        name: `מסע של ${userData.name}`,
-        students: []
-      } as Trip;
-      
-      await setDoc(doc(db, "trips", tripId), newTrip);
-      userData.tripId = tripId;
-    }
-
-    if (userData.role === 'student' && userData.tripId) {
-      const tripRef = doc(db, "trips", userData.tripId);
-      const tripSnap = await getDoc(tripRef);
-      
-      if (!tripSnap.exists()) {
-        alert("קוד טיול לא נמצא! וודא שהזנת את הקוד הנכון.");
-        return;
+    try {
+      if (userData.role === 'guide' && customJoinCode) {
+        const tripId = customJoinCode;
+        const newTrip: Trip = {
+          ...STATIC_INITIAL_TRIP,
+          id: tripId,
+          joinCode: customJoinCode,
+          name: `המסע של ${userData.name}`,
+          students: []
+        } as Trip;
+        
+        await setDoc(doc(db, "trips", tripId), newTrip);
+        userData.tripId = tripId;
       }
+
+      if (userData.role === 'student' && userData.tripId) {
+        const tripRef = doc(db, "trips", userData.tripId);
+        const tripSnap = await getDoc(tripRef);
+        
+        if (!tripSnap.exists()) {
+          toast({
+            variant: "destructive",
+            title: "קוד טיול לא נמצא",
+            description: "וודא שהזנת את הקוד הנכון שקיבלת מהמלווה."
+          });
+          return;
+        }
+        
+        // Add student to the trip's students list
+        await updateDoc(tripRef, {
+          students: arrayUnion({ id: userData.id, name: userData.name })
+        });
+      }
+
+      setUser(userData);
+      localStorage.setItem("masaon_user", JSON.stringify(userData));
       
-      // Add student to the trip's students list if not already there
-      await updateDoc(tripRef, {
-        students: arrayUnion({ id: userData.id, name: userData.name })
+      toast({
+        title: "התחברת בהצלחה!",
+        description: `שלום ${userData.name}, ברוך הבא למסעון.`
+      });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast({
+        variant: "destructive",
+        title: "שגיאה בהתחברות",
+        description: "אירעה שגיאה בזמן החיבור למסע. אנא נסה שנית."
       });
     }
-
-    setUser(userData);
-    localStorage.setItem("masaon_user", JSON.stringify(userData));
   };
 
   const handleLogout = () => {
@@ -113,15 +133,23 @@ export default function Home() {
   const updateTripInFirestore = async (newTripData: Trip | ((prev: Trip) => Trip)) => {
     if (!user?.tripId || !trip) return;
     
-    let updated: Trip;
-    if (typeof newTripData === 'function') {
-      updated = newTripData(trip);
-    } else {
-      updated = newTripData;
-    }
+    try {
+      let updated: Trip;
+      if (typeof newTripData === 'function') {
+        updated = newTripData(trip);
+      } else {
+        updated = newTripData;
+      }
 
-    // Persist to Firestore
-    await setDoc(doc(db, "trips", user.tripId), updated, { merge: true });
+      await setDoc(doc(db, "trips", user.tripId), updated, { merge: true });
+    } catch (error) {
+      console.error("Update Firestore error:", error);
+      toast({
+        variant: "destructive",
+        title: "שגיאה בשמירה",
+        description: "לא הצלחנו לעדכן את הנתונים בשרת."
+      });
+    }
   };
 
   if (!isLoaded) return (
