@@ -47,7 +47,12 @@ export default function Home() {
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser);
+        if (parsedUser && parsedUser.id) {
+          setUser(parsedUser);
+        } else {
+          localStorage.removeItem("masaon_user");
+        }
       } catch (e) {
         localStorage.removeItem("masaon_user");
       }
@@ -65,7 +70,6 @@ export default function Home() {
     console.log("Subscribing to trip:", user.tripId);
     const tripRef = doc(db, "trips", user.tripId);
     
-    // ננקה טיימרים קודמים אם קיימים
     if (notFoundTimeoutRef.current) {
       clearTimeout(notFoundTimeoutRef.current);
     }
@@ -80,10 +84,10 @@ export default function Home() {
           setTrip({ ...docSnap.data(), id: docSnap.id } as Trip);
           setSyncError(null);
         } else {
-          // נותנים לזה 10 שניות לפני שמתייאשים - חשוב במיוחד בחיבורים איטיים
+          // נותנים לזה 10 שניות לפני שמתייאשים
           if (!notFoundTimeoutRef.current) {
             notFoundTimeoutRef.current = setTimeout(() => {
-              setSyncError("לא מצאנו את נתוני המסע בשרת. וודא שהקוד שקיבלת נכון או בקש מהמלווה לוודא שהמסע נוצר.");
+              setSyncError("לא מצאנו את נתוני המסע בשרת. וודא שהקוד שקיבלת נכון.");
             }, 10000); 
           }
         }
@@ -119,7 +123,7 @@ export default function Home() {
           students: []
         } as Trip;
         
-        // יצירה בשרת - נשתמש ב-setDoc בלי await כדי לא לתקוע את הממשק
+        // יצירה בשרת - אופטימי
         setDoc(doc(db, "trips", normalizedTripId), newTrip, { merge: true })
           .catch(e => console.error("Error creating trip:", e));
       }
@@ -127,18 +131,16 @@ export default function Home() {
       if (userData.role === 'student') {
         const tripRef = doc(db, "trips", normalizedTripId);
         
-        // בדיקה אם הטיול קיים לפני שנכנסים
+        // בדיקה מהירה אם הטיול קיים
         const tripSnap = await getDoc(tripRef);
         if (!tripSnap.exists()) {
-          throw new Error("קוד המסע שהזנת לא קיים במערכת. בדוק שוב את הקוד.");
+          throw new Error("קוד המסע שהזנת לא קיים במערכת.");
         }
 
-        // הוספת החניך לרשימה
+        // הוספת החניך
         updateDoc(tripRef, {
           students: arrayUnion({ id: userData.id, name: userData.name })
-        }).catch(e => {
-          console.warn("Could not sync student join immediately, will retry in background");
-        });
+        }).catch(e => console.warn("Could not sync student join immediately"));
       }
 
       setUser(userData);
@@ -171,7 +173,7 @@ export default function Home() {
     setSyncError(null);
     setTimeout(() => {
       setIsRetrying(false);
-      // רענון הסטייט כדי להפעיל את ה-Effect מחדש
+      // רענון הסטייט
       if (user) {
         const temp = {...user};
         setUser(null);
@@ -205,7 +207,8 @@ export default function Home() {
     return <AuthScreen onLogin={handleLogin} />;
   }
 
-  if (!trip && user.tripId) {
+  // אם המשתמש מחובר אבל הטיול עדיין לא נטען, נציג מסך טעינה
+  if (!trip) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
         {syncError ? (
@@ -234,19 +237,20 @@ export default function Home() {
     );
   }
 
+  // רק כשיש גם משתמש וגם טיול, נציג את הדאשבורד
   return (
     <div className="min-h-screen bg-background">
       {user.role === "guide" ? (
         <GuideDashboard 
           user={user} 
-          trip={trip!} 
+          trip={trip} 
           setTrip={updateTripInFirestore as any} 
           onLogout={handleLogout} 
         />
       ) : (
         <StudentDashboard 
           user={user} 
-          trip={trip!} 
+          trip={trip} 
           setTrip={updateTripInFirestore as any} 
           onLogout={handleLogout} 
         />
