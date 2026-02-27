@@ -1,10 +1,12 @@
 
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
-// הגדרות הפרויקט - בסביבת Firebase Studio הערכים מוזרקים אוטומטית.
-// השתמשנו בהגדרות התואמות לפרויקט masaon-app.
 const firebaseConfig = {
   apiKey: "AIzaSyAs-example-key",
   authDomain: "masaon-app.firebaseapp.com",
@@ -14,12 +16,14 @@ const firebaseConfig = {
   appId: "1:123456789:web:abcdef123456"
 };
 
-// אתחול אפליקציה בצורה חכמה שמונעת כפילויות
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// אתחול Firestore עם הגדרות עמידות יותר לסביבת ענן וריבוי טאבים
+// אילוץ Long Polling לשיפור יציבות בסביבות ענן ומניעת שגיאות Offline
 const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  localCache: persistentLocalCache({ 
+    tabManager: persistentMultipleTabManager() 
+  }),
+  experimentalForceLongPolling: true
 });
 
 const auth = getAuth(app);

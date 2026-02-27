@@ -12,11 +12,11 @@ import {
   onSnapshot, 
   setDoc, 
   updateDoc, 
-  arrayUnion, 
-  getDoc
+  arrayUnion
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2, AlertCircle } from "lucide-react";
 
 const STATIC_INITIAL_TRIP: Omit<Trip, "id" | "joinCode" | "name"> = {
   itinerary: [],
@@ -37,8 +37,9 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
-  // טעינת משתמש קיים מ-localStorage
+  // טעינת משתמש קיים
   useEffect(() => {
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
@@ -51,92 +52,86 @@ export default function Home() {
     setIsLoaded(true);
   }, []);
 
-  // האזנה לשינויים בטיול בזמן אמת ב-Firestore
+  // האזנה לשינויים בטיול בזמן אמת
   useEffect(() => {
     if (!user?.tripId) {
       setTrip(null);
+      setSyncError(null);
       return;
     }
 
     const tripRef = doc(db, "trips", user.tripId);
-    const unsub = onSnapshot(tripRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setTrip({ ...docSnap.data(), id: docSnap.id } as Trip);
-      } else {
-        console.warn("Trip document not found in Firestore");
-        // אם הטיול נמחק, כדאי להוציא את המשתמש
-        if (user.role === 'student') {
-          toast({ variant: "destructive", title: "המסע הסתיים", description: "המסע שאליו היית מחובר לא נמצא יותר." });
-          handleLogout();
+    
+    const unsub = onSnapshot(tripRef, 
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setTrip({ ...docSnap.data(), id: docSnap.id } as Trip);
+          setSyncError(null);
+        } else {
+          setSyncError("לא מצאנו את נתוני המסע בשרת. ייתכן שהקוד שגוי או שהמסע נמחק.");
         }
+      }, 
+      (error) => {
+        console.error("Firestore sync error:", error);
+        setSyncError("שגיאה בחיבור לשרת. וודא שיש לך חיבור אינטרנט תקין.");
       }
-    }, (error) => {
-      console.error("Firestore sync error:", error);
-    });
+    );
 
     return () => unsub();
   }, [user?.tripId]);
 
   const handleLogin = async (userData: User, customJoinCode?: string) => {
     try {
+      const normalizedTripId = (customJoinCode || userData.tripId || "").trim().toUpperCase();
+      
+      if (!normalizedTripId) {
+        throw new Error("קוד מסע חסר.");
+      }
+
+      userData.tripId = normalizedTripId;
+
       if (userData.role === 'guide' && customJoinCode) {
-        const tripId = customJoinCode;
         const newTrip: Trip = {
           ...STATIC_INITIAL_TRIP,
-          id: tripId,
-          joinCode: customJoinCode,
+          id: normalizedTripId,
+          joinCode: normalizedTripId,
           name: `המסע של ${userData.name}`,
           students: []
         } as Trip;
         
-        // יצירת הטיול ללא await כדי לא להיתקע
-        setDoc(doc(db, "trips", tripId), newTrip).catch(err => {
-          console.error("Failed to sync new trip:", err);
-        });
-        
-        userData.tripId = tripId;
+        // יצירה אופטימית
+        setDoc(doc(db, "trips", normalizedTripId), newTrip, { merge: true });
       }
 
-      if (userData.role === 'student' && userData.tripId) {
-        const tripId = userData.tripId.trim().toUpperCase();
-        const tripRef = doc(db, "trips", tripId);
-        
-        // בדיקת קיום הטיול בצורה בטוחה
-        const tripSnap = await getDoc(tripRef);
-        if (!tripSnap.exists()) {
-          throw new Error("קוד מסע לא תקין. וודא שהזנת את הקוד שקיבלת מהמלווה.");
-        }
-        
-        userData.tripId = tripId;
-        
+      if (userData.role === 'student') {
         // עדכון רשימת הסטודנטים ברקע
-        updateDoc(tripRef, {
+        updateDoc(doc(db, "trips", normalizedTripId), {
           students: arrayUnion({ id: userData.id, name: userData.name })
-        }).catch(err => console.error("Sync student error:", err));
+        }).catch(() => {
+          // אם נכשל (למשל הטיול לא קיים), ה-onSnapshot יתפוס את זה
+        });
       }
 
-      // שמירה מקומית ומעבר לדאשבורד
       setUser(userData);
       localStorage.setItem("masaon_user", JSON.stringify(userData));
       
       toast({
         title: "שלום " + userData.name,
-        description: "התחברת למסע בהצלחה."
+        description: "מתחבר לנתוני המסע..."
       });
     } catch (error: any) {
-      console.error("Login Error:", error);
       toast({
         variant: "destructive",
         title: "שגיאה בכניסה",
-        description: error.message || "לא הצלחנו להתחבר למסע כרגע."
+        description: error.message || "לא הצלחנו להתחבר כרגע."
       });
-      throw error;
     }
   };
 
   const handleLogout = () => {
     setUser(null);
     setTrip(null);
+    setSyncError(null);
     localStorage.removeItem("masaon_user");
   };
 
@@ -150,20 +145,19 @@ export default function Home() {
       updated = newTripData;
     }
 
-    // עדכון ב-Firestore ללא await לחוויה מהירה
     setDoc(doc(db, "trips", user.tripId), updated, { merge: true }).catch(err => {
       console.error("Firestore update failed:", err);
       toast({
         variant: "destructive",
         title: "שגיאת סנכרון",
-        description: "השינוי נשמר מקומית אך לא נשלח לשרת."
+        description: "השינוי לא נשמר בשרת."
       });
     });
   };
 
   if (!isLoaded) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="animate-pulse text-primary font-bold">טוען מסעון...</div>
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
     </div>
   );
 
@@ -171,15 +165,27 @@ export default function Home() {
     return <AuthScreen onLogin={handleLogin} />;
   }
 
+  // מסך טעינה או שגיאה בחיבור לנתוני המסע
   if (!trip && user.tripId) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-6"></div>
-        <h2 className="text-xl font-bold mb-2">מתחבר לנתוני המסע...</h2>
-        <p className="text-sm text-muted-foreground mb-8">
-          זה עשוי לקחת רגע בחיבור ראשון.
-        </p>
-        <Button variant="outline" onClick={handleLogout}>התנתק וחזור</Button>
+        {syncError ? (
+          <div className="space-y-4 animate-in fade-in duration-500">
+            <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
+            <h2 className="text-xl font-bold">{syncError}</h2>
+            <p className="text-sm text-muted-foreground">נסה לבדוק את הקוד שוב או להתחבר מחדש.</p>
+            <Button variant="outline" onClick={handleLogout} className="w-full">התנתק וחזור</Button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold">מתחבר לנתוני המסע בשרת...</h2>
+              <p className="text-sm text-muted-foreground">זה עשוי לקחת כמה שניות בחיבור ראשון</p>
+            </div>
+            <Button variant="ghost" onClick={handleLogout} className="text-xs">ביטול וחזרה</Button>
+          </div>
+        )}
       </div>
     );
   }
