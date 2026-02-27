@@ -24,7 +24,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
   useEffect(() => {
     const joinCode = searchParams.get("join");
     if (joinCode) {
-      setCode(joinCode);
+      setCode(joinCode.toUpperCase().trim());
       setRole("student");
     }
   }, [searchParams]);
@@ -38,24 +38,23 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     if (role === "student" && !code) return;
 
     setIsLoading(true);
-    console.log("Starting authentication process for:", name);
     try {
       const userId = Math.random().toString(36).substr(2, 9);
+      const normalizedCode = code.trim().toUpperCase();
       const newJoinCode = role === "guide" ? generateJoinCode() : undefined;
 
       await onLogin({
         id: userId,
         name,
         role,
-        tripId: role === "student" ? code : undefined
+        tripId: role === "student" ? normalizedCode : undefined
       }, newJoinCode);
       
     } catch (error) {
       console.error("AuthScreen error:", error);
-      // Loading is set to false in finally block
-    } finally {
       setIsLoading(false);
     }
+    // הערה: ה-isLoading לא משתנה ל-false אם הכל הצליח כי אנחנו עוברים דף
   };
 
   return (
@@ -111,8 +110,8 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                     id="code"
                     placeholder="הכנס קוד טיול"
                     value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="text-right"
+                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    className="text-right font-mono"
                     disabled={isLoading}
                   />
                 </div>
@@ -120,13 +119,13 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
 
               <Button 
                 onClick={handleJoin} 
-                className="w-full bg-primary hover:bg-primary/90"
+                className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold"
                 disabled={!name || (role === 'student' && !code) || isLoading}
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                    מעבד בקשה...
+                    מתחבר...
                   </>
                 ) : (
                   role === "guide" ? "צור טיול והצטרף" : "הצטרף לטיול"
