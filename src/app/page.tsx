@@ -39,13 +39,11 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    console.log("App mounted, checking local storage...");
     const savedUser = localStorage.getItem("masaon_user");
     if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
-        console.log("User restored from storage:", parsedUser.name);
       } catch (e) {
         localStorage.removeItem("masaon_user");
       }
@@ -59,14 +57,10 @@ export default function Home() {
       return;
     }
 
-    console.log("Setting up Firestore listener for trip:", user.tripId);
     const unsub = onSnapshot(doc(db, "trips", user.tripId), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as Trip;
         setTrip(data);
-        console.log("Trip data synced from Firestore");
-      } else {
-        console.error("Trip document not found in Firestore");
       }
     }, (error) => {
       console.error("Firestore listener error:", error);
@@ -76,70 +70,82 @@ export default function Home() {
   }, [user]);
 
   const handleLogin = async (userData: User, customJoinCode?: string) => {
-    console.log("Starting login process for:", userData.name, "Role:", userData.role);
-    try {
-      if (userData.role === 'guide' && customJoinCode) {
-        const tripId = customJoinCode;
-        console.log("Creating new trip with ID:", tripId);
-        
-        const newTrip: Trip = {
-          ...STATIC_INITIAL_TRIP,
-          id: tripId,
-          joinCode: customJoinCode,
-          name: `המסע של ${userData.name}`,
-          students: []
-        } as Trip;
-        
-        await setDoc(doc(db, "trips", tripId), newTrip);
-        console.log("Trip created successfully in Firestore");
-        userData.tripId = tripId;
-      }
+    console.log("--- Starting Login Process ---");
+    console.log("User:", userData.name, "Role:", userData.role);
 
-      if (userData.role === 'student' && userData.tripId) {
-        const tripId = userData.tripId.toUpperCase();
-        console.log("Joining existing trip with ID:", tripId);
-        
-        const tripRef = doc(db, "trips", tripId);
-        const tripSnap = await getDoc(tripRef);
-        
-        if (!tripSnap.exists()) {
-          console.warn("Join code not found:", tripId);
-          toast({
-            variant: "destructive",
-            title: "קוד טיול לא נמצא",
-            description: "וודא שהזנת את הקוד הנכון שקיבלת מהמלווה."
+    try {
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout: התקשורת עם השרת איטית מדי. נסה שוב בעוד רגע.")), 10000)
+      );
+
+      const loginLogic = (async () => {
+        if (userData.role === 'guide' && customJoinCode) {
+          const tripId = customJoinCode;
+          console.log("Checkpoint 1: Creating new trip document in Firestore...", tripId);
+          
+          const newTrip: Trip = {
+            ...STATIC_INITIAL_TRIP,
+            id: tripId,
+            joinCode: customJoinCode,
+            name: `המסע של ${userData.name}`,
+            students: []
+          } as Trip;
+          
+          await setDoc(doc(db, "trips", tripId), newTrip);
+          console.log("Checkpoint 2: Trip document created successfully.");
+          userData.tripId = tripId;
+        }
+
+        if (userData.role === 'student' && userData.tripId) {
+          const tripId = userData.tripId.toUpperCase();
+          console.log("Checkpoint 1: Searching for trip with code:", tripId);
+          
+          const tripRef = doc(db, "trips", tripId);
+          const tripSnap = await getDoc(tripRef);
+          
+          if (!tripSnap.exists()) {
+            console.warn("Checkpoint Error: Trip code not found.");
+            throw new Error("קוד טיול לא נמצא. וודא שהזנת את הקוד הנכון שקיבלת מהמלווה.");
+          }
+          
+          console.log("Checkpoint 2: Trip found. Adding student to participants list...");
+          userData.tripId = tripId;
+          await updateDoc(tripRef, {
+            students: arrayUnion({ id: userData.id, name: userData.name })
           });
-          return;
+          console.log("Checkpoint 3: Student added successfully.");
         }
         
-        userData.tripId = tripId;
-        console.log("Adding student to trip list...");
-        await updateDoc(tripRef, {
-          students: arrayUnion({ id: userData.id, name: userData.name })
-        });
-      }
+        return userData;
+      })();
 
-      setUser(userData);
-      localStorage.setItem("masaon_user", JSON.stringify(userData));
-      console.log("Login sequence complete");
+      // Race the login logic against the timeout
+      const finalUserData = await Promise.race([loginLogic, timeoutPromise]) as User;
+
+      console.log("--- Login Process Successful ---");
+      setUser(finalUserData);
+      localStorage.setItem("masaon_user", JSON.stringify(finalUserData));
       
       toast({
         title: "התחברת בהצלחה!",
-        description: `שלום ${userData.name}, ברוך הבא למסעון.`
+        description: `שלום ${finalUserData.name}, ברוך הבא למסעון.`
       });
     } catch (error: any) {
-      console.error("Detailed login error:", error);
+      console.error("--- Login Process Failed ---");
+      console.error("Detailed error:", error);
+      
       toast({
         variant: "destructive",
-        title: "שגיאה בחיבור לשרת",
-        description: error.message || "אירעה שגיאה בזמן החיבור למסע. בדוק את חיבור האינטרנט שלך."
+        title: "שגיאה בחיבור",
+        description: error.message || "אירעה שגיאה לא צפויה בזמן החיבור למסע."
       });
-      throw error; // Re-throw to let AuthScreen know it failed
+      // Allow AuthScreen to reset loading state
+      throw error;
     }
   };
 
   const handleLogout = () => {
-    console.log("Logging out...");
     setUser(null);
     setTrip(null);
     localStorage.removeItem("masaon_user");
@@ -162,7 +168,7 @@ export default function Home() {
       toast({
         variant: "destructive",
         title: "שגיאה בשמירת נתונים",
-        description: "לא הצלחנו לעדכן את השרת. וודא שיש לך הרשאות מתאימות."
+        description: "לא הצלחנו לעדכן את השרת."
       });
     }
   };
@@ -179,9 +185,12 @@ export default function Home() {
 
   if (!trip && user.tripId) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
         <p className="text-primary font-bold mb-4">מתחבר לנתוני המסע בשרת...</p>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-6"></div>
+        <p className="text-sm text-muted-foreground mb-4 max-w-xs">
+          זה עשוי לקחת מספר שניות בחיבור ראשון. אם זה נמשך זמן רב, נסה להתנתק ולהתחבר שוב.
+        </p>
         <Button variant="outline" onClick={handleLogout}>התנתק וחזור למסך כניסה</Button>
       </div>
     );
