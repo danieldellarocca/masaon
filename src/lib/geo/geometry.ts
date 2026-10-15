@@ -47,7 +47,19 @@ function ringAreaKm2(ring: Ring): number {
   return Math.abs((sum * EARTH_RADIUS_KM * EARTH_RADIUS_KM) / 2);
 }
 
-export function makePart(rings: Ring[]): PolygonPart {
+// פוליגון שחוצה את קו התאריך (רוסיה, פיג'י) מגיע עם קפיצה מ-180 ל-180-.
+// "פורשים" אותו לטווח רציף (קו אורך עד 360), אחרת הצלע הקופצת חוצה את כל המפה ובדיקת ההכלה משתבשת.
+function unwrapRings(rings: Ring[]): Ring[] {
+  const outer = rings[0];
+  const crosses = outer.some(([lng], i) => i > 0 && Math.abs(lng - outer[i - 1][0]) > 180);
+  if (!crosses) return rings;
+  return rings.map((ring) => ring.map(([lng, lat]) => [lng < 0 ? lng + 360 : lng, lat] as [number, number]));
+}
+
+export const normalizeLng = (lng: number) => (lng > 180 ? lng - 360 : lng);
+
+export function makePart(sourceRings: Ring[]): PolygonPart {
+  const rings = unwrapRings(sourceRings);
   let minLng = Infinity;
   let minLat = Infinity;
   let maxLng = -Infinity;
@@ -88,6 +100,7 @@ function ringContains(ring: Ring, lng: number, lat: number): boolean {
 }
 
 export function partContains(part: PolygonPart, lng: number, lat: number): boolean {
+  if (part.bbox[2] > 180 && lng < 0) lng += 360; // חלק "פרוש" מעבר לקו התאריך
   if (!bboxContains(part.bbox, lng, lat)) return false;
   if (!ringContains(part.rings[0], lng, lat)) return false;
   for (let i = 1; i < part.rings.length; i++) {
@@ -129,11 +142,8 @@ export function unionBBox(boxes: BBox[]): BBox | null {
     minB = Math.min(minB, shift(w), shift(e));
     maxB = Math.max(maxB, shift(w), shift(e));
   }
-  if (maxB - minB < maxA - minA) {
-    const norm = (lng: number) => (lng > 180 ? lng - 360 : lng);
-    return [norm(minB), minLat, norm(maxB), maxLat];
-  }
-  return [minA, minLat, maxA, maxLat];
+  if (maxB - minB < maxA - minA) return [normalizeLng(minB), minLat, normalizeLng(maxB), maxLat];
+  return [normalizeLng(minA), minLat, normalizeLng(maxA), maxLat];
 }
 
 export function bboxDiagonalKm(b: BBox): number {

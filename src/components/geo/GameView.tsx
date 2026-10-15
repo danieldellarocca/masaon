@@ -26,7 +26,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { CompiledArea } from "@/lib/geo/area";
-import { countryAt, type Boundaries } from "@/lib/geo/boundaries";
+import { countryAt, countryNear, type Boundaries } from "@/lib/geo/boundaries";
 import { COUNTRY_BY_CODE, flagEmoji } from "@/lib/geo/countries";
 import { haversineKm, type LatLng } from "@/lib/geo/geometry";
 import { MAP_ID } from "@/lib/geo/google-maps";
@@ -273,7 +273,7 @@ export function GameView({ area, areaKey, boundaries, settings, onFinished, onEx
       guess: g,
       distanceKm,
       score: distanceKm == null ? 0 : scoreForDistance(distanceKm, area.scaleKm),
-      actualCountry: countryAt(boundaries, loc.lat, loc.lng),
+      actualCountry: countryNear(boundaries, loc.lat, loc.lng),
       guessCountry: g ? countryAt(boundaries, g.lat, g.lng) : null,
     };
     phaseRef.current = "result";

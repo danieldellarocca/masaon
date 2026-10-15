@@ -1,4 +1,4 @@
-import type { Boundaries } from "./boundaries";
+import { countryAt, nearbyPoints, type Boundaries } from "./boundaries";
 import { COUNTRIES, COUNTRY_BY_CODE } from "./countries";
 import {
   bboxContains,
@@ -6,6 +6,7 @@ import {
   bboxIntersection,
   bboxSphericalArea,
   haversineKm,
+  normalizeLng,
   partContains,
   randomPointInBBox,
   randomPointInCircle,
@@ -129,7 +130,7 @@ function compileEntry(entry: AreaEntry, boundaries: Boundaries, explicit: boolea
 }
 
 function entryContains(e: CompiledEntry, p: LatLng): boolean {
-  if (e.clip && !bboxContains(e.clip, p.lng, p.lat)) return false;
+  if (e.clip && !bboxContains(e.clip, p.lng < e.clip[0] ? p.lng + 360 : p.lng, p.lat)) return false;
   return e.parts.some((part) => partContains(part, p.lng, p.lat));
 }
 
@@ -180,14 +181,18 @@ function compileEntries(
       for (let i = 0; i < 60; i++) {
         const p = randomPointInBBox(box);
         if (partContains(part, p.lng, p.lat)) {
-          return { point: p, searchRadiusM: searchRadiusFor(e.areaKm2), code: e.code };
+          return { point: { lat: p.lat, lng: normalizeLng(p.lng) }, searchRadiusM: searchRadiusFor(e.areaKm2), code: e.code };
         }
       }
       return null;
     },
     contains(p) {
       if (options.anywhere) return true;
-      return compiled.some((e) => entryContains(e, p));
+      if (compiled.some((e) => entryContains(e, p))) return true;
+      // פנורמה על קו החוף שהגבולות הגסים מסמנים כים: מקבלים אותה אם היא צמודה למדינה שנבחרה
+      // ולא נמצאת בתוך מדינה אחרת.
+      if (countryAt(boundaries, p.lat, p.lng) !== null) return false;
+      return nearbyPoints(p, 4).some((q) => compiled.some((e) => entryContains(e, q)));
     },
     report(code, found) {
       const e = compiled.find((x) => x.code === code);

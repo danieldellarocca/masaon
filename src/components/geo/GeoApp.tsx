@@ -119,8 +119,8 @@ export function GeoApp() {
     setStarting(true);
     setStartError(null);
     try {
-      if (!mapsReady) throw new Error("Google Maps עדיין נטען, נסו שוב בעוד רגע.");
-      const boundaries = await loadBoundaries();
+      // אם הספרייה עדיין נטענת – מחכים לה (הטעינה עצמה כבר רצה ברקע).
+      const [, boundaries] = await Promise.all([loadGoogleMaps(apiKey), loadBoundaries()]);
       const compiled = compileArea(area, boundaries);
       saveLastArea(area);
       saveSettings(settings);
